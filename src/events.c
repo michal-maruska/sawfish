@@ -936,6 +936,9 @@ enter_notify (XEvent *ev)
 	repv tem;
 	bool refresh = FALSE;
 	Lisp_Window *w = fp->win;
+	if (!w)
+	    DB(("%s: fp->win = 0 -> %s This would be a SEGFAULT!\n", __FUNCTION__, error_color,
+		color_reset));
 	if (!fp->highlighted && !frame_state_mutex)
 	{
 	    fp->highlighted = 1;
@@ -982,6 +985,9 @@ leave_notify (XEvent *ev)
 	repv tem;
 	bool refresh = FALSE;
 	Lisp_Window *w = fp->win;
+	 if (!w)
+	     DB(("%s: fp->win = 0 -> %s This would be a SEGFAULT!\n", __FUNCTION__, error_color,
+		 color_reset));
 	if (fp->highlighted && !frame_state_mutex)
 	{
 	    fp->highlighted = 0;
