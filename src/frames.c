@@ -860,6 +860,7 @@ set_frame_part_fg (struct frame_part *fp, bool bg_drawn)
 	       from select () */
 	    rep_mark_input_pending (ConnectionNumber(dpy));
 
+            /* force rewriting:  */
 	    fp->drawn.text = Qnil;
 	}
 	else if (COLORP(fg) && FONTP(font))
