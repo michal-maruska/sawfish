@@ -292,6 +292,12 @@ call_protectedly_1 (repv fun, repv arg, repv error_return)
     return call_protectedly (Ffuncall, rep_LIST_2 (fun, arg), error_return);
 }
 
+inline bool
+window_frame_shaped(Lisp_Window *w)
+{
+   return (w->shaped);
+}
+
 static void
 apply_mask (Drawable dest, int x_off, int y_off,
 	    int dest_width, int dest_height,
@@ -331,7 +337,7 @@ apply_mask (Drawable dest, int x_off, int y_off,
    If ATOMIC is true, then the frame shape is changed _once_ only, using
    a temporary buffer to construct the new shape, then copying it
    to the frame. */
-void
+static void
 set_frame_shapes (Lisp_Window *w, bool atomic)
 {
     Window shape_win;
@@ -339,6 +345,8 @@ set_frame_shapes (Lisp_Window *w, bool atomic)
     XRectangle *rects;
     struct frame_part *fp;
 
+    if (!window_frame_shaped(w))
+       return;
     if (atomic)
     {
 	XSetWindowAttributes wa;
@@ -363,8 +371,10 @@ set_frame_shapes (Lisp_Window *w, bool atomic)
     rects[0].x = rects[0].y = 0;
     rects[0].width = w->frame_width;
     rects[0].height = w->frame_height;
-    XShapeCombineRectangles (dpy, shape_win, ShapeBounding,
-			     0, 0, rects, 1, ShapeSubtract, Unsorted);
+    if (! ((!w->client_hidden)
+           && (w->shaped)))
+        XShapeCombineRectangles (dpy, shape_win, ShapeBounding,
+                                 0, 0, rects, 1, ShapeSubtract, Unsorted);
 
     if (!w->client_hidden)
     {
@@ -591,7 +601,7 @@ set_frame_part_bg (struct frame_part *fp)
 	{
 	    XCopyArea (dpy, bg_pixmap, fp->id, fp->gc, 0, 0,
 		       fp->width, fp->height, 0, 0);
-	    if (bg_mask != 0)
+            if ((bg_mask != 0) && window_frame_shaped(fp->win))
 	    {
 		XShapeCombineMask (dpy, fp->id, ShapeBounding,
 				   0, 0, bg_mask, ShapeSet);
@@ -601,7 +611,7 @@ set_frame_part_bg (struct frame_part *fp)
 	{
 	    Window tem = 0;
 	    int y = 0;
-	    if (bg_mask != 0)
+            if ((bg_mask != 0) && window_frame_shaped(fp->win))
 	    {
 		XRectangle rect;
 		XSetWindowAttributes wa;
@@ -628,7 +638,7 @@ set_frame_part_bg (struct frame_part *fp)
 		{
 		    XCopyArea (dpy, bg_pixmap, fp->id, fp->gc,
 			       0, 0, width, height, x, y);
-		    if (bg_mask != 0)
+                    if ((bg_mask != 0) && window_frame_shaped(fp->win))
 		    {
 			XShapeCombineMask (dpy, tem, ShapeBounding,
 					   x, y, bg_mask, ShapeUnion);
@@ -637,7 +647,7 @@ set_frame_part_bg (struct frame_part *fp)
 		}
 		y += height;
 	    }
-	    if (bg_mask != 0)
+            if ((bg_mask != 0) && window_frame_shaped(fp->win))
 	    {
 		XShapeCombineShape (dpy, fp->id, ShapeBounding, 0, 0,
 				    tem, ShapeBounding, ShapeSet);
