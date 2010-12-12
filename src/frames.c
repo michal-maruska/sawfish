@@ -1419,6 +1419,8 @@ configure_frame_part (struct frame_part *fp)
 				    fp->width, fp->height,
 				    0, image_depth, InputOutput,
 				    image_visual, wamask, &wa);
+            XSetWindowBackgroundPixmap(dpy, fp->id, None);
+            /* I want the clearArea to keep the content! */
 	    gcv.graphics_exposures = False;
 	    fp->gc = XCreateGC (dpy, fp->id, GCGraphicsExposures, &gcv);
 	    XSelectInput (dpy, fp->id, FP_EVENTS);
