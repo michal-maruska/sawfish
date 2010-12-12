@@ -520,19 +520,22 @@ commit_queued_reshapes (void)
 }
 
 /* Draw the background of the frame-part FP. This is either a solid color
-   or an image (scaled or tiled) */
-static void
+   or an image (scaled or tiled) 
+   Can return (FALSE) if nothing changed.
+   if we draw, we return TRUE, and put  ->drawn.fg to rep_NULL. */
+static bool
 set_frame_part_bg (struct frame_part *fp)
 {
+   bool changed = FALSE;
     int state = current_state (fp);
     repv bg = fp->bg[state];
     Lisp_Window *win = fp->win;
 
-    if (fp->id == 0)
-	return;
+    assert (fp->id);
 
     if (fp->renderer != Qnil && IMAGEP(fp->rendered_image))
     {
+        DB(("lisp renderer actually used!\n"));
 	bg = fp->rendered_image;
 	if (fp->rendered_state != state)
 	{
@@ -543,7 +546,7 @@ set_frame_part_bg (struct frame_part *fp)
     }
 
     if (WINDOW_IS_GONE_P (win))
-	return;
+	return changed;
 
     if (COLORP(bg))
     {
@@ -555,6 +558,7 @@ set_frame_part_bg (struct frame_part *fp)
 	    XFillRectangle (dpy, fp->id, fp->gc, 0, 0, fp->width, fp->height);
 	    fp->drawn.bg = bg;
 	    fp->drawn.fg = rep_NULL;
+            changed = TRUE;
 	}
     }
     else if (IMAGEP(bg))
@@ -565,7 +569,7 @@ set_frame_part_bg (struct frame_part *fp)
 	repv tem;
 
 	if (fp->drawn.bg == bg)
-	    return;
+	    return changed;
 
 	tem = Fimage_get (rep_VAL(image), Qtiled);
 	if (tem && tem != Qnil)
@@ -585,9 +589,9 @@ set_frame_part_bg (struct frame_part *fp)
 	   this can cause the error handler to run if a window has been
 	   deleted. This then invalidates the window we're updating */
 	if (WINDOW_IS_GONE_P (win))
-	    return;
+	    return changed;
 
-	if (bg_mask == 0)
+        if ((bg_mask == 0) && window_frame_shaped(fp->win))
 	{
 	    /* No mask, so we always want to force the rectangle
 	       including the frame part to be shown.. */
@@ -601,6 +605,7 @@ set_frame_part_bg (struct frame_part *fp)
 
 	if (!tiled)
 	{
+            changed = TRUE;
 	    XCopyArea (dpy, bg_pixmap, fp->id, fp->gc, 0, 0,
 		       fp->width, fp->height, 0, 0);
             if ((bg_mask != 0) && window_frame_shaped(fp->win))
@@ -631,6 +636,7 @@ set_frame_part_bg (struct frame_part *fp)
 		XShapeCombineRectangles (dpy, tem, ShapeBounding, 0, 0,
 					 &rect, 1, ShapeSubtract, Unsorted);
 	    }
+            changed = TRUE;
 	    while (y < fp->height)
 	    {
 		int x = 0;
@@ -662,6 +668,7 @@ set_frame_part_bg (struct frame_part *fp)
 	   from select () */
 	rep_mark_input_pending (ConnectionNumber(dpy));
 
+        changed = TRUE;
 	fp->drawn.bg = bg;
 	fp->drawn.fg = rep_NULL;
 
@@ -673,27 +680,35 @@ set_frame_part_bg (struct frame_part *fp)
     }
     else if (Ffunctionp (bg) != Qnil)
     {
+        DB(("lisp function theme actually used!\n"));
 	rep_call_lisp1 (bg, rep_VAL(fp));
 	fp->drawn.bg = bg;
 	fp->drawn.fg = rep_NULL;
     }
     else
 	fp->drawn.bg = Qnil;
+    return changed;
 }
 
-/* Draw the foreground pixels in frame-part FP. */
-static void
-set_frame_part_fg (struct frame_part *fp)
+/* Draw the foreground pixels in frame-part FP.
+ * bg_drawn indicates, that we *should* draw as soon as there is
+ * something to draw: i.e. even if previous fg was identical
+ * we have to redraw.
+ * Returns true iff something was drawn.
+ */
+static bool
+set_frame_part_fg (struct frame_part *fp, bool bg_drawn)
 {
+    bool changed = FALSE;
     int state = current_state (fp);
     repv font = fp->font[state], fg = fp->fg[state];
     repv string = rep_NULL;
     int length = 0, width, height, x, y;
     Lisp_Window *win = fp->win;
 
-    if (fp->id == 0)
-	return;
+    assert (fp->id);
 
+    /* protection against infinite recursion!  */
     if (fg != Qnil && Ffunctionp (fg) != Qnil)
     {
 	rep_call_lisp1 (fg, rep_VAL(fp));
@@ -733,7 +748,7 @@ set_frame_part_fg (struct frame_part *fp)
 	    {
 		repv result = rep_call_lisp1 (fp->text, rep_VAL(fp->win));
 		if (!result || !rep_STRINGP(result))
-		    return;
+                    return FALSE;
 		string = result;
 		length = rep_STRING_LEN(result);
 	    }
@@ -778,9 +793,9 @@ set_frame_part_fg (struct frame_part *fp)
 		&& fp->drawn.x_justify == fp->x_justify
 		&& fp->drawn.y_justify == fp->y_justify)
 	    {
-		return;
+		return FALSE;
 	    }
-	    else if (fp->drawn.fg != rep_NULL)
+	    else if (!bg_drawn)
 	    {
 		/* there's something drawn in this part already,
 		   update the background to clear it */
@@ -795,7 +810,7 @@ set_frame_part_fg (struct frame_part *fp)
 	       this can cause the error handler to run if a window has been
 	       deleted. This then invalidates the window we're updating */
 	    if (WINDOW_IS_GONE_P (win))
-		return;
+                return FALSE;
 
 	    if (fg_pixmap)
 	    {
@@ -808,6 +823,7 @@ set_frame_part_fg (struct frame_part *fp)
 		}
 
 		XChangeGC (dpy, fp->gc, gcv_mask, &gcv);
+                changed = TRUE;
 		XCopyArea (dpy, fg_pixmap, fp->id, fp->gc,
 			   0, 0, MIN(fp->width, width),
 			   MIN(fp->height, height), x, y);
@@ -835,16 +851,16 @@ set_frame_part_fg (struct frame_part *fp)
 		&& fp->drawn.x_justify == fp->x_justify
 		&& fp->drawn.y_justify == fp->y_justify)
 	    {
-		return;
+		return FALSE;
 	    }
- 	    else if (fp->drawn.fg != rep_NULL)
+ 	    else if (!bg_drawn) /* (fp->drawn.fg != rep_NULL) */
 	    {
 		/* there's something drawn in this part already,
 		   update the background to clear it */
 		fp->drawn.bg = rep_NULL;
 		set_frame_part_bg (fp);
 	    }
-
+            changed = TRUE;
 	    x_draw_string (fp->id, font, fp->gc, VCOLOR(fg),
 			   x, y + VFONT(font)->ascent,
                            rep_STR(string), length);
@@ -852,11 +868,14 @@ set_frame_part_fg (struct frame_part *fp)
 	    fp->drawn.text = string;
 	}
     }
+
 out:
     fp->drawn.font = font;
     fp->drawn.fg = fg;
     fp->drawn.x_justify = fp->x_justify;
     fp->drawn.y_justify = fp->y_justify;
+
+    return changed;
 }
 
 /* Redraw FP. */
@@ -866,6 +885,10 @@ refresh_frame_part (struct frame_part *fp)
     if (!frame_draw_mutex)
     {
 	Lisp_Window *w = fp->win;
+        bool changed = FALSE;
+        bool changed_fg = FALSE;
+
+        /* mmc: this indeed fails! */
 	if (w == 0)			/* XXX why is this needed? */
 	    return;
 
@@ -873,16 +896,21 @@ refresh_frame_part (struct frame_part *fp)
 	    fp->drawn.bg = rep_NULL;
 
 	if (!WINDOW_IS_GONE_P (w) && fp->id != 0)
-	    set_frame_part_bg (fp);
+	    changed = set_frame_part_bg (fp);
 	if (!WINDOW_IS_GONE_P (w) && fp->id != 0)
-	    set_frame_part_fg (fp);
+	    changed_fg = set_frame_part_fg (fp, changed);
 
-	fp->drawn.width = fp->width;
-	fp->drawn.height = fp->height;
+        if (changed || changed_fg)
+        {
+            fp->drawn.width = fp->width;
+            fp->drawn.height = fp->height;
+        } else {
+        }
 	fp->pending_refresh = 0;
     }
-    else
-	fp->pending_refresh = 1;
+    else {
+        fp->pending_refresh = 1;
+    }
 }
 
 /* Redraw frame parts in W. */
