@@ -299,12 +299,14 @@ struct frame_part {
 
     repv cursor;
 
+    int width_changed : 1;
     /* cached state of the window */
     struct {
 	int width, height;
 	repv font, text;
 	repv x_justify, y_justify;
 	repv fg, bg;
+        int x, y; /* position of the fp window inside the frame window */
     } drawn;
 };
 
