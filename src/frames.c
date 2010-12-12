@@ -103,6 +103,9 @@ DEFSYM(hidden, "hidden");
 DEFSYM(border_width, "border-width");
 DEFSYM(border_color, "border-color");
 
+DEFSYM(close_button, "close-button");
+DEFSYM(shadow_button, "shadow-button");
+DEFSYM(iconify_button, "iconify-button");
 static repv state_syms[fps_MAX];
 
 static bool frame_draw_mutex;
@@ -2686,6 +2689,8 @@ frames_init (void)
     rep_INTERN(hidden);
     rep_INTERN(border_width);
     rep_INTERN(border_color);
+    rep_INTERN(iconify_button);
+    rep_INTERN(close_button);
 
     rep_INTERN_SPECIAL(frame_part_classes);
     rep_INTERN_SPECIAL(override_frame_part_classes);
