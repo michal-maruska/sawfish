@@ -128,6 +128,7 @@ typedef struct lisp_window {
 
     /* Have we called the destroy-notify-hook? */
     unsigned int destroyed : 1;
+    unsigned int frame_destroyed : 1;
 
     /* The WM protocols understood by the client */
     unsigned int does_wm_take_focus : 1;
