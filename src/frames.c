@@ -1717,8 +1717,10 @@ configure_frame_part (struct frame_part *fp)
     }
     if (fp->id != 0)
     {
+#if 0
 	XDefineCursor (dpy, fp->id, (fp->cursor != Qnil)
 		       ? VCURSOR(fp->cursor)->cursor : None);
+#endif
     }
 }
 
