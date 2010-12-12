@@ -1308,6 +1308,7 @@ get_color (repv name)
     return Fget_color (name, Qnil);
 }
 
+/* convert the various  alists  into the C attributes of the struct. */
 static bool
 build_frame_part (struct frame_part *fp)
 {
