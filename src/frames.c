@@ -77,6 +77,7 @@ DEFSYM(background, "background");
 DEFSYM(foreground, "foreground");
 DEFSYM(renderer, "renderer");
 DEFSYM(gravity, "gravity");
+DEFSYM(expose, "expose");
 DEFSYM(render_scale, "render-scale");
 DEFSYM(font, "font");
 DEFSYM(width, "width");
@@ -1105,6 +1106,10 @@ frame_part_exposer (XExposeEvent *ev, struct frame_part *fp)
 	/* expose events override the drawing mutex,
 	   unless the server is grabbed.. */
 	bool old_mutex = frame_draw_mutex;
+        if (!fp->win)
+            return;
+        if (Fwindow_get(rep_VAL(fp->win), Qexpose, Qnil) == Qt)
+            return;
 	frame_draw_mutex = (Fserver_grabbed_p () != Qnil);
 	fp->drawn.bg = rep_NULL;
         fp->drawn.fg = rep_NULL;
@@ -2704,6 +2709,7 @@ frames_init (void)
     state_syms[fps_inactive_clicked] = Qinactive_clicked;
 
     rep_INTERN(gravity);
+    rep_INTERN(expose);
     if (!batch_mode_p ())
 	window_fp_context = XUniqueContext ();
 }
