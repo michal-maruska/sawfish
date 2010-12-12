@@ -2069,6 +2069,7 @@ list_frame_generator (Lisp_Window *w)
             unsigned int mask = CWStackMode | CWSibling;
             XConfigureWindow (dpy, w->frame, mask, &wc);
         }
+        w->frame_destroyed = 0;
     }
     else
     {
@@ -2202,16 +2203,17 @@ create_window_frame (Lisp_Window *w)
 void
 destroy_window_frame (Lisp_Window *w, bool leave_frame_win)
 {
-    if (w->frame != 0)
+    if ((w->frame != 0) && (!w->frame_destroyed))
     {
 	if (w->destroy_frame != 0)
 	{
 	    w->destroy_frame (w);
 	    w->destroy_frame = 0;
 	}
-	if (!leave_frame_win && w->frame != 0)
+        if (!leave_frame_win && ! w->frame_destroyed && (w->frame != 0))
 	{
 	    XDestroyWindow (dpy, w->frame);
+            w->frame_destroyed = 1;
 	    w->frame = 0;
 	}
     }
