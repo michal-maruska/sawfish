@@ -171,13 +171,8 @@ fp_sweep (void)
 	{
 	    assert (fp->next == 0);
 	    assert (fp->id == 0);
-#if 0
-	    /* XXX This assertion has been reported to trigger (when opening
-	       ddd and acroread -- both motif apps?). I don't see how this
-	       happens but since fp->id is zero and fp->win will get gc'd,
-	       we're not going to leak any resources, so.. */
+            /* mmc proudly! */
 	    assert (fp->win == 0);
-#endif
 	    rep_FREE_CELL(fp);
 	}
 	else
@@ -1937,104 +1932,151 @@ list_frame_generator (Lisp_Window *w)
        we loop over the Lisp list of frame part specs. Otherwise we loop
        over the _actual_ list of frame parts */
     rep_PUSHGC(gc_ptr, ptr);
-    while ((!regen && rep_CONSP(ptr))
-	   || (regen && fp != 0))
+    if (regen)
     {
-	rep_GC_root gc_fp;
-	repv fp_;
-	if (!regen)
-	    fp = fp_new (w, rep_CAR (ptr));
-	fp_ = rep_VAL(fp);
+        /* we have an s-linked-list. We walk it and process the nodes.
+         * occasionally a node is to be removed? or maybe just not rendered??
+         * */
+        struct frame_part **prev = &(w->frame_parts);
+        while (fp != 0)
+        {
+            /* don't g.-collect this (frame) part */
+            rep_GC_root gc_fp;
+            repv fp_;
+            fp_ = rep_VAL(fp);
 
-	rep_PUSHGC(gc_fp, fp_);
-	if (build_frame_part (fp))
-	{
-	    /* expand frame bounding box */
-	    left_x = MIN(left_x, fp->x);
-	    right_x = MAX(right_x, fp->x + fp->width);
-	    top_y = MIN(top_y, fp->y);
-	    bottom_y = MAX(bottom_y, fp->y + fp->height);
+            rep_PUSHGC(gc_fp, fp_);
+            if (build_frame_part (fp))
+            {
+                /* expand frame bounding box */
+                left_x = MIN(left_x, fp->x);
+                right_x = MAX(right_x, fp->x + fp->width);
+                top_y = MIN(top_y, fp->y);
+                bottom_y = MAX(bottom_y, fp->y + fp->height);
 
-	    if (!regen)
+                prev = &(fp->next);
+                nparts++;
+                  
+            } else {
+                *prev = fp->next;
+                {
+                    if (fp->id)
+                        XDestroyWindow (dpy, fp->id);
+                    fp->id = 0;
+                    if (fp->gc)
+                        XFreeGC (dpy, fp->gc);
+                    fp->gc = 0;
+                }
+                fp->win = 0;
+                fp->next = 0;
+            }
+            rep_POPGC;
+            fp = fp->next;
+        }
+    } else
+        while (rep_CONSP(ptr))
+        {
+            rep_GC_root gc_fp;
+            repv fp_;
+            
+            fp = fp_new (w, rep_CAR (ptr));
+            fp_ = rep_VAL(fp);
+
+            rep_PUSHGC(gc_fp, fp_);
+         
+            if (build_frame_part (fp))
 	    {
+                /* expand frame bounding box */
+                left_x = MIN(left_x, fp->x);
+                right_x = MAX(right_x, fp->x + fp->width);
+                top_y = MIN(top_y, fp->y);
+                bottom_y = MAX(bottom_y, fp->y + fp->height);
 		/* link in fp */
 		*last_fp = fp;
 		last_fp = &fp->next;
-	    }
-
-	    nparts++;
-	}
-	rep_POPGC;			/* fp */
-
-	if (!regen)
-	    ptr = rep_CDR(ptr);
-	else
-	    fp = fp->next;
-    }
+                nparts++;
+            } else {
+                fp->win = 0;    /* fixing bug! */
+            }
+            rep_POPGC;			/* fp */
+        
+            ptr = rep_CDR(ptr);
+        }
     rep_POPGC;				/* ptr */
 
-    bigger = (right_x - left_x > w->frame_width
-	      || bottom_y - top_y > w->frame_height);
+    {
+        int new_w = right_x - left_x;
+        int new_h = bottom_y - top_y;
 
-    old_x_off = w->frame_x;
-    old_y_off = w->frame_y;
+        bigger = (new_w > w->frame_width
+                  || new_h > w->frame_height);
 
-    /* now we can find the size and offset of the frame. */
-    w->frame_width = right_x - left_x;
-    w->frame_height = bottom_y - top_y;
-    w->frame_x = left_x;
-    w->frame_y = top_y;
+        old_x_off = w->frame_x;
+        old_y_off = w->frame_y;
+
+        /* now we can find the size and offset of the frame. */
+        w->frame_width = new_w;
+        w->frame_height = new_h;
+
+        w->frame_x = left_x;
+        w->frame_y = top_y;
+    }
 
     if (debug_frames)
 	DB(("  bounding box: x=%d y=%d width=%d height=%d\n",
 	    left_x, top_y, w->frame_width, w->frame_height));
 
     if (w->reparented && bigger)
-	set_frame_shapes (w, TRUE);
+        set_frame_shapes (w, TRUE);
 
     /* create the child-of-root frame window, or if it already exists,
        configure it to the correct size.. */
-
     if (w->frame == 0)
     {
-	int depth = image_depth;
-	Visual *visual = image_visual;
-	Colormap colormap = image_cmap;
+        int depth = image_depth;
+        Visual *visual = image_visual;
+        Colormap colormap = image_cmap;
 
-	/* If window is using an ARGB visual, the frame also should. */
-	if (w->attr.depth == 32)
-	{
-	    depth = 32;
-	    visual = w->attr.visual;
-	    colormap = w->attr.colormap;
-	}
+        /* If window is using an ARGB visual, the frame also should. */
+        if (w->attr.depth == 32)
+        {
+            depth = 32;
+            visual = w->attr.visual;
+            colormap = w->attr.colormap;
+        }
 
 	wa.override_redirect = True;
+        wa.save_under = w->attr.save_under;
 	wa.colormap = colormap;
 	wa.border_pixel = w->border_pixel;
-	wa.save_under = w->attr.save_under;
 	wamask = CWOverrideRedirect | CWColormap | CWBorderPixel | CWSaveUnder;
 
 	w->frame = XCreateWindow (dpy, root_window, w->attr.x, w->attr.y,
 				  w->frame_width, w->frame_height, w->border_width,
 				  depth, InputOutput, visual, wamask, &wa);
+        if (frame_options & 1)
+        {
+            XSetWindowBackground(dpy, w->frame, BlackPixel (dpy, screen_num));
+            XSetWindowBackgroundPixmap(dpy, w->frame, None);
+        };
     }
     else
     {
-	/* adjust frame position to keep absolute client position constant */
-	w->attr.x += w->frame_x - old_x_off;
-	w->attr.y += w->frame_y - old_y_off;
+        /* adjust frame position to keep absolute client position constant */
+        w->attr.x += w->frame_x - old_x_off;
+        w->attr.y += w->frame_y - old_y_off;
 
-	XSetWindowBorder (dpy, w->frame, w->border_pixel);
-	XSetWindowBorderWidth (dpy, w->frame, w->border_width);
-	XMoveResizeWindow (dpy, w->frame, w->attr.x, w->attr.y,
-			   w->frame_width, w->frame_height);
+        XSetWindowBorder (dpy, w->frame, w->border_pixel);
+        XSetWindowBorderWidth (dpy, w->frame, w->border_width);
+        XMoveResizeWindow (dpy, w->frame, w->attr.x, w->attr.y,
+                           w->frame_width, w->frame_height);
 
-	if (w->reparented)
-	    XMoveResizeWindow (dpy, w->id, -left_x, -top_y,
-			       w->attr.width, w->attr.height);
-	else
-	    XResizeWindow (dpy, w->id, w->attr.width, w->attr.height);
+        if (w->reparented)
+            XMoveResizeWindow (dpy, w->id, -left_x, -top_y,
+                               w->attr.width, w->attr.height);
+        else
+            /*mmc:  could this happen??? */
+            XResizeWindow (dpy, w->id, w->attr.width, w->attr.height);
     }
 
     w->destroy_frame = frame_part_destroyer;
@@ -2044,30 +2086,30 @@ list_frame_generator (Lisp_Window *w)
     w->move_resize_frame = move_resize_frame;
 
     if (w->reparented)
-	XLowerWindow (dpy, w->id);
+        XLowerWindow (dpy, w->id);
 
     /* create/update windows for each part */
     for (fp = w->frame_parts; fp != 0; fp = fp->next)
-	configure_frame_part (fp);
+        configure_frame_part (fp);
 
     if (!w->reparented || !bigger)
-	set_frame_shapes (w, TRUE);
+        set_frame_shapes (w, TRUE);
 
     /* ICCCM says we must unmap the client window when it's hidden */
     {
-	int unmap_client = (!w->visible || w->client_hidden);
-	if (w->client_unmapped != unmap_client)
-	{
-	    before_local_map (w);
-	    if (unmap_client)
-		XUnmapWindow (dpy, w->id);
-	    else
-		XMapWindow (dpy, w->id);
-	    w->client_unmapped = unmap_client;
-	    after_local_map (w);
-	    if (focus_window == w)
-		focus_on_window (w);
-	}
+        int unmap_client = (!w->visible || w->client_hidden);
+        if (w->client_unmapped != unmap_client)
+        {
+            before_local_map (w);
+            if (unmap_client)
+                XUnmapWindow (dpy, w->id);
+            else
+                XMapWindow (dpy, w->id);
+            w->client_unmapped = unmap_client;
+            after_local_map (w);
+            if (focus_window == w)
+                focus_on_window (w);
+        }
     }
 
     rep_POPGC;				/* win */
