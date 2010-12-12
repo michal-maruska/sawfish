@@ -375,7 +375,7 @@ set_frame_shapes (Lisp_Window *w, bool atomic)
 	wa.colormap = image_cmap;
 	wa.border_pixel = w->border_pixel;
 	wamask = CWColormap | CWBorderPixel;
-	shape_win = XCreateWindow (dpy, root_window, -100, -100,
+	shape_win = XCreateWindow (dpy, root_window, 0, 0,
 				   w->frame_width, w->frame_height,
 				   w->border_width, image_depth, InputOutput,
 				   image_visual, wamask, &wa);
