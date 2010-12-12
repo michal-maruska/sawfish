@@ -47,6 +47,7 @@
 #include "debug-colors.h"
 int debug_frames;
 
+int frame_options=3 + 1024;
 extern int have_dbe;
 extern repv gravity_map[StaticGravity+1];
 
