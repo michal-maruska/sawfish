@@ -46,6 +46,7 @@
 #include "debug.h"
 #include "debug-colors.h"
 int debug_frames;
+int debug_frame_part=0;
 
 int frame_options=3 + 1024;
 extern int have_dbe;
@@ -123,6 +124,8 @@ fp_new (Lisp_Window *win, repv alist)
     memset (fp, 0, sizeof (struct frame_part));
     fp->car = frame_part_type;
     fp->win = win;
+    if (debug_frames & DB_FRAMES_ALLOC)
+	DB(("%s: fp->win = %x, pointer = %x\n", __FUNCTION__, fp->win, fp));
     fp->alist = alist;
     fp->local_alist = Qnil;
     fp->next_alloc = allocated_parts;
@@ -514,6 +517,8 @@ set_frame_shapes (Lisp_Window *w, bool atomic)
 			    0, 0, shape_win, ShapeInput, ShapeSet);
 #endif
 	XDestroyWindow (dpy, shape_win);
+	if (debug_frames & DB_FRAMES_SHAPE)
+	    DB(("   ATOMIC-> now (using & immediately) destroying window %x\n", shape_win));
     }
 
     w->pending_reshape = 0;
@@ -531,6 +536,8 @@ void
 commit_queued_reshapes (void)
 {
     Lisp_Window *w;
+    if (debug_frames & (DB_FRAMES_RE & DB_FRAMES_SHAPE))
+	DB(("%s\n", __FUNCTION__));
     for (w = window_list; w != 0; w = w->next)
     {
 	if (!WINDOW_IS_GONE_P (w) && w->pending_reshape)
@@ -2440,7 +2447,8 @@ void
 create_window_frame (Lisp_Window *w)
 {
     if (debug_frames)
-	DB(("create_window_frame (%s)\n", rep_STR(w->name)));
+	DB(("create_window_frame (%s): %d %d\n", window_name(w),
+	    VWIN(w)->attr.width,VWIN(w)->attr.height));
     if (w->frame_parts == 0)
     {
 	w->destroy_frame = 0;
