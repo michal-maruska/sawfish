@@ -952,6 +952,7 @@ frame_part_exposer (XExposeEvent *ev, struct frame_part *fp)
 	bool old_mutex = frame_draw_mutex;
 	frame_draw_mutex = (Fserver_grabbed_p () != Qnil);
 	fp->drawn.bg = rep_NULL;
+        fp->drawn.fg = rep_NULL;
 	refresh_frame_part (fp);
 	frame_draw_mutex = old_mutex;
     }
@@ -1448,6 +1449,11 @@ configure_frame_part (struct frame_part *fp)
 
 	    fp->drawn.fg = rep_NULL;
 	    fp->drawn.bg = rep_NULL;
+
+            fp->drawn.x = fp->x - w->frame_x;
+            fp->drawn.y = fp->y - w->frame_y;
+            fp->drawn.width = fp->width;
+            fp->drawn.height = fp->height;
 	}
     }
     else
