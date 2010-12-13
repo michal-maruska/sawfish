@@ -1461,13 +1461,38 @@ configure_frame_part (struct frame_part *fp)
 	if (fp->width > 0 && fp->height > 0)
 	{
 	    XWindowChanges attr;
-	    attr.x = fp->x - w->frame_x;
-	    attr.y = fp->y - w->frame_y;
-	    attr.width = fp->width;
-	    attr.height = fp->height;
+            unsigned int mask = 0;
+            if ((fp->drawn.width != fp->width)
+                || (fp->drawn.height != fp->height))
+            {
+                attr.width = fp->width;
+                attr.height = fp->height;
+                mask |= CWWidth | CWHeight;
+            }
+
+            attr.x = fp->x - w->frame_x;
+            attr.y = fp->y - w->frame_y;
+
+            if (fp->drawn.x != attr.x)
+            {
+                mask |= CWX;
+            }
+
+            if (fp->drawn.y != attr.y)
+            {
+                mask |= CWY;
+            }
+
 	    attr.stack_mode = fp->below_client ? Below : Above;
-	    XConfigureWindow (dpy, fp->id, CWX | CWY | CWWidth
-			      | CWHeight | CWStackMode, &attr);
+
+            /* now I can set it, nothwistanding if it's already == (the same).
+             * if I simply move, the contents is kept, so no need (a priory) to redraw.
+             * */
+            fp->drawn.x = attr.x;
+            fp->drawn.y = attr.y;
+
+            if (mask)
+                XConfigureWindow (dpy, fp->id, mask, &attr);
 	    /* Generate an Expose event for the window. */
 	    XClearArea (dpy, fp->id, 0, 0, 0, 0, True);
 	}
