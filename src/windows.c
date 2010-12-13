@@ -1241,6 +1241,8 @@ Ensure that WINDOW (if it has been mapped) is visible. See `hide-window'.
     rep_DECLARE1(win, WINDOWP);
     if (!VWIN(win)->visible)
     {
+        /* mmc: I don't want to see the content of client window, w/o the frame drawn! */
+        Fgrab_server ();
 	if (VWIN(win)->mapped)
 	{
 	    if (VWIN(win)->client_unmapped && !VWIN(win)->client_hidden)
@@ -1252,8 +1254,12 @@ Ensure that WINDOW (if it has been mapped) is visible. See `hide-window'.
 	    }
 	    if (VWIN(win)->frame)
 		XMapWindow (dpy, VWIN(win)->frame);
+            mark_all_frame_parts_as_exposed(win);
 	}
 	VWIN(win)->visible = 1;
+
+        refresh_frame_parts(win);
+        Fungrab_server ();
     }
     return win;
 }
