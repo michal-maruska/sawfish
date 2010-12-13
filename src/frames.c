@@ -47,6 +47,7 @@
 #include "debug-colors.h"
 int debug_frames;
 
+extern repv gravity_map[StaticGravity+1];
 
 static XID window_fp_context;
 
@@ -68,6 +69,7 @@ DEFSYM(y_justify, "y-justify");
 DEFSYM(background, "background");
 DEFSYM(foreground, "foreground");
 DEFSYM(renderer, "renderer");
+DEFSYM(gravity, "gravity");
 DEFSYM(render_scale, "render-scale");
 DEFSYM(font, "font");
 DEFSYM(width, "width");
@@ -1316,6 +1318,23 @@ build_frame_part (struct frame_part *fp)
 	}
     }
 
+    /* get the (window) gravity: */
+   fp->gravity = 0;
+
+   tem = fp_assq (fp, Qgravity, class_elt, ov_class_elt);
+   if (tem != Qnil)
+   {
+       if (rep_SYMBOLP(rep_CDR(tem)))
+       {
+	   int i = 0;
+	   while (i< StaticGravity+1 && !fp->gravity){
+	       if (gravity_map[i++] == rep_CDR(tem))
+		   fp->gravity = i-1;
+	   }
+       } else
+	   DB(("gravity is not a symbol!\n"));
+   }
+
     /* get dimensions.. */
     tem = get_integer_prop (fp, Qwidth, class_elt, ov_class_elt);
     if (tem != Qnil)
@@ -1359,6 +1378,18 @@ build_frame_part (struct frame_part *fp)
     if (fp->height < 0)
 	fp->height = 0;
 
+    if (!fp->gravity)
+    {
+	if (had_right_edge)
+	{
+	    fp->gravity = had_top_edge? NorthEastGravity : SouthEastGravity;
+	}
+	else
+	{
+	    fp->gravity = had_top_edge? NorthWestGravity : SouthWestGravity;
+	};
+    }
+
     /* try to remove edges sticking out of small windows. if a part
        specified by only one edge sticks out of the other edge, then
        truncate it */
@@ -1385,6 +1416,10 @@ build_frame_part (struct frame_part *fp)
 	fp->height = w->attr.height - fp->y;
     }
 
+
+    if (!fp->gravity)
+	fp->gravity = StaticGravity;
+
     /* if we have a renderer function, create the image to
        render into. */
     if (fp->renderer != Qnil)
@@ -1401,6 +1436,9 @@ build_frame_part (struct frame_part *fp)
     if (debug_frames)
 	DB(("  part: x=%d y=%d width=%d height=%d\n",
 	    fp->x, fp->y, fp->width, fp->height));
+
+    if (frame_options & 256)
+	fp->gravity = StaticGravity;
 
     ret = TRUE;
 
@@ -1420,7 +1458,7 @@ configure_frame_part (struct frame_part *fp)
 	if (fp->width > 0 && fp->height > 0)
 	{
 	    XGCValues gcv;
-	    wa.win_gravity = StaticGravity;
+	    wa.win_gravity = fp->gravity;
 	    wa.bit_gravity = StaticGravity;
 	    wa.colormap = image_cmap;
 	    wa.border_pixel = BlackPixel (dpy, screen_num);
@@ -2510,6 +2548,7 @@ frames_init (void)
     state_syms[fps_inactive_highlighted] = Qinactive_highlighted;
     state_syms[fps_inactive_clicked] = Qinactive_clicked;
 
+    rep_INTERN(gravity);
     if (!batch_mode_p ())
 	window_fp_context = XUniqueContext ();
 }

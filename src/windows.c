@@ -98,7 +98,7 @@ DEFSYM(south_west, "south-west");
 DEFSYM(south, "south");
 DEFSYM(south_east, "south-east");
 
-static repv gravity_map[StaticGravity+1];
+repv gravity_map[StaticGravity+1];
 
 /* In sawfish-1.3.3, the only callback used is keymap_prop_change. */
 
@@ -348,6 +348,8 @@ install_window_frame (Lisp_Window *w)
             DB(("  reparented to %" FMT_WIN " [%dx%d%+d%+d]\n",
                 w->frame, w->frame_width, w->frame_height,
                 w->frame_x, w->frame_y));
+        wa.win_gravity = StaticGravity;
+        XChangeWindowAttributes(dpy, w->id, CWWinGravity, &wa);
     }
 }
 
