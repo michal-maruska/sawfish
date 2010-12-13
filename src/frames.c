@@ -47,9 +47,14 @@
 #include "debug-colors.h"
 int debug_frames;
 
+extern int have_dbe;
 extern repv gravity_map[StaticGravity+1];
 
 extern Window queued_focus_id;
+
+#ifdef HAVE_X11_EXTENSIONS_XDBE_H
+# include <X11/extensions/Xdbe.h>
+#endif
 static XID window_fp_context;
 
 int frame_part_type;
