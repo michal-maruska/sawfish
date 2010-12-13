@@ -927,13 +927,120 @@ refresh_frame_part (struct frame_part *fp)
     }
 }
 
+
+static bool
+frame_visible_p(Lisp_Window *w)
+{
+   DB(("%s: %s %d %d\n", __FUNCTION__,
+       rep_STR(w->name),
+       w->attr.x + w->frame_x,
+       (w->attr.x + w->frame_x + w->frame_width)
+       /* ,((w->attr.x + w->frame_x + w->frame_width)<0)?"<0":">0"*/
+         ));
+       
+   /* too >> */
+   if ((w->attr.x + w->frame_x) > screen_width)
+      {
+         return FALSE;
+      }
+   /* too << */
+   if ((w->attr.x + w->frame_x + (int) w->frame_width) < 0)
+      {
+         return FALSE;
+      }
+
+   DB(("%s: %s %d %d\n", __FUNCTION__,
+       rep_STR(w->name),
+       (w->attr.y + w->frame_y),
+       (w->attr.y + w->frame_y + w->frame_height)));
+   
+   if ((w->attr.y + w->frame_y) > screen_height)
+      return FALSE;
+   if ((w->attr.y + w->frame_y + (int) w->frame_height) < 0)
+      {
+         return FALSE;
+      }
+
+   return TRUE;
+}
+
+
+static bool
+frame_part_visible(Lisp_Window *w, struct frame_part *fp)
+{
+   if (WINDOW_IS_GONE_P (w))
+       return FALSE;
+
+   /*   |------|
+    *     |--|
+    *|-|
+    *            |--|
+    *|-----------|
+    */
+   /* frame is Above client window...and Frame window is not clipping. */
+   /* fixme: w->attr.x  is the position of FRAME  fp->x is RELATIVE to CLIENT window! */
+   int fpx = fp->x - w->frame_x;
+   int fpy = fp->y - w->frame_y;
+   
+   /* fp->x - w->frame_x, fp->y - w->frame_y, */
+   
+   if ((w->attr.x + fpx) > screen_width)
+      {
+            return FALSE;
+      }
+   else if ((w->attr.x + fpx + fp->width) < 0)
+      return FALSE;
+
+   if ((w->attr.y + fpy) > screen_height)
+      {
+            return FALSE;
+      }
+   else if ((w->attr.y + fpy + fp->width) < 0)
+      return FALSE;
+   /* inside some screen */
+   return TRUE;
+}
+
+
+void
+mark_all_frame_parts_as_exposed(Lisp_Window *w)
+{
+   struct frame_part *fp;
+   if (!WINDOW_IS_GONE_P (w))
+      for (fp = w->frame_parts;  fp != 0; fp = fp->next)
+         {
+            fp->drawn.bg = rep_NULL;
+            fp->drawn.fg = rep_NULL; /* if bg is null by definition? */
+         }
+}
+
 /* Redraw frame parts in W. */
 void
 refresh_frame_parts (Lisp_Window *w)
 {
     struct frame_part *fp;
-    for (fp = w->frame_parts; !WINDOW_IS_GONE_P (w) && fp != 0; fp = fp->next)
-	refresh_frame_part (fp);
+    int non_visible = 0;
+    int refreshed = 0;
+
+    if (w->visible) {
+        int non_visible = 0;
+        int refreshed = 0;
+        if (frame_visible_p(w))
+        {
+            for (fp = w->frame_parts; !WINDOW_IS_GONE_P (w) && fp != 0; fp = fp->next)
+                if (frame_part_visible(w, fp)){
+                    refreshed ++;
+                    refresh_frame_part (fp); /* fixme! */
+                } else {
+                    non_visible++;
+                };
+            
+             if (non_visible) {
+                DB(("skipped refreshing %d non exposed fps %s\n",
+                    non_visible, rep_STR(w->name)));
+             }
+        }
+    }
 }
 
 /* Find the frame-part that is drawn in window ID */
