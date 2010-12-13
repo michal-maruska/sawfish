@@ -277,6 +277,7 @@ struct frame_part {
     int x, y, width, height;
     Window id;
     GC gc;
+    int gravity;
 
     unsigned int clicked : 1;
     unsigned int highlighted : 1;
