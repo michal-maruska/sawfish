@@ -1690,8 +1690,22 @@ configure_frame_part (struct frame_part *fp)
 
             if (mask)
                 XConfigureWindow (dpy, fp->id, mask, &attr);
+#if 0
 	    /* Generate an Expose event for the window. */
 	    XClearArea (dpy, fp->id, 0, 0, 0, 0, True);
+#endif
+
+            if ((Fwindow_get(rep_VAL(fp->win), Qexpose, Qnil) != Qt)
+                && (mask & (CWWidth | CWHeight)))
+            {
+                /* Generate an Expose event for the window. */
+                /* if (mask) */
+                if (frame_options & 2048)
+                    XClearArea (dpy, fp->id, 0, 0, 0, 0, True);
+            }
+            else
+            {
+            }
 	}
 	else
 	{
