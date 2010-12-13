@@ -975,7 +975,8 @@ Reinitialises and recalibrates the window frame of WINDOW.
                 VWIN(win)->attr.width,VWIN(win)->attr.height));
 
 	VWIN(win)->rebuild_frame (VWIN(win));
-	refresh_frame_parts (VWIN(win));
+        if (frame_options & 1<<5) /* 32 */
+            refresh_frame_parts (VWIN(win));
 	Fcall_window_hook (Qafter_framing_hook, win, Qnil, Qnil);
     }
     return win;
