@@ -2059,6 +2059,14 @@ list_frame_generator (Lisp_Window *w)
             XSetWindowBackground(dpy, w->frame, BlackPixel (dpy, screen_num));
             XSetWindowBackgroundPixmap(dpy, w->frame, None);
         };
+
+        {
+            XWindowChanges wc;
+            wc.stack_mode = Below;
+            wc.sibling = w->id;
+            unsigned int mask = CWStackMode | CWSibling;
+            XConfigureWindow (dpy, w->frame, mask, &wc);
+        }
     }
     else
     {
