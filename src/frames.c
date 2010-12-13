@@ -49,6 +49,7 @@ int debug_frames;
 
 extern repv gravity_map[StaticGravity+1];
 
+extern Window queued_focus_id;
 static XID window_fp_context;
 
 int frame_part_type;
@@ -237,22 +238,30 @@ fp_sweep (void)
 
 int
 current_state (struct frame_part *fp)
+/* mmc: this could be optimized to solve it for all FP of a window at once. */
 {
+    Window id = fp->win->id;
+    /* mmc: but then, any window can override this .... or TAKE_FOCUS...  */
+    int focused_p = (id == (queued_focus_id?:focus_request.window));
+
+    DB(("%s: %" FMT_WIN "-%" FMT_WIN "-%" FMT_WIN "\n" , __FUNCTION__, id,
+        queued_focus_id,focus_request.window));
+    
     if (fp->clicked)
     {
-	if (fp->win == focus_window)
+	if (focused_p)
 	    return fps_clicked;
 	else
 	    return fps_inactive_clicked;
     }
     else if (fp->highlighted)
     {
-	if (fp->win == focus_window)
+        if (focused_p)
 	    return fps_highlighted;
 	else
 	    return fps_inactive_highlighted;
     }
-    else if (fp->win == focus_window)
+    else if (focused_p)
 	return fps_focused;
     else
 	return fps_inactive;
