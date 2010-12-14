@@ -257,9 +257,10 @@ current_state (struct frame_part *fp)
     /* mmc: but then, any window can override this .... or TAKE_FOCUS...  */
     int focused_p = (id == (queued_focus_id?:focus_request.window));
 
-    DB(("%s: %" FMT_WIN "-%" FMT_WIN "-%" FMT_WIN "\n" , __FUNCTION__, id,
-        queued_focus_id,focus_request.window));
-    
+    if (debug_frames)
+        DB(("%s: %" FMT_WIN "-%" FMT_WIN "-%" FMT_WIN "\n" , __FUNCTION__, id,
+            queued_focus_id,focus_request.window));
+
     if (fp->clicked)
     {
 	if (focused_p)
