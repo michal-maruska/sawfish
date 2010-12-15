@@ -945,12 +945,13 @@ refresh_frame_part (struct frame_part *fp)
 static bool
 frame_visible_p(Lisp_Window *w)
 {
-   DB(("%s: %s %d %d\n", __FUNCTION__,
-       rep_STR(w->name),
-       w->attr.x + w->frame_x,
-       (w->attr.x + w->frame_x + w->frame_width)
-       /* ,((w->attr.x + w->frame_x + w->frame_width)<0)?"<0":">0"*/
-         ));
+    if (debug_frames)
+        DB(("%s: %s %d %d\n", __FUNCTION__,
+            rep_STR(w->name),
+            w->attr.x + w->frame_x,
+            (w->attr.x + w->frame_x + w->frame_width)
+            /* ,((w->attr.x + w->frame_x + w->frame_width)<0)?"<0":">0"*/
+            ));
        
    /* too >> */
    if ((w->attr.x + w->frame_x) > screen_width)
@@ -963,10 +964,11 @@ frame_visible_p(Lisp_Window *w)
          return FALSE;
       }
 
-   DB(("%s: %s %d %d\n", __FUNCTION__,
-       rep_STR(w->name),
-       (w->attr.y + w->frame_y),
-       (w->attr.y + w->frame_y + w->frame_height)));
+   if (debug_frames)
+       DB(("%s: %s %d %d\n", __FUNCTION__,
+           rep_STR(w->name),
+           (w->attr.y + w->frame_y),
+           (w->attr.y + w->frame_y + w->frame_height)));
    
    if ((w->attr.y + w->frame_y) > screen_height)
       return FALSE;
@@ -1050,8 +1052,9 @@ refresh_frame_parts (Lisp_Window *w)
                 };
             
              if (non_visible) {
-                DB(("skipped refreshing %d non exposed fps %s\n",
-                    non_visible, rep_STR(w->name)));
+                 if (debug_frames)
+                     DB(("skipped refreshing %d non exposed fps %s\n",
+                         non_visible, rep_STR(w->name)));
              }
         }
     }
