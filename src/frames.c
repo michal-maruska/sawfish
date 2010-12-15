@@ -2036,14 +2036,11 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
 
                   /* if not equal in some  */
 
-                  /*  */
                   if (debug_frames & 1024)
-                     DB(("position D: %x(req %u): %d,%d, size: %d,%d -> g=%d %s ->D %d,%d"
-                         "(%s%s%s)\n",
+                     DB(("position D: %x(req %u): %d,%d, size: %d,%d -> g=%d ->D %d,%d\n",
                          fp->id, NextRequest(dpy),
                          fdx, fdy, fdw, fdh,
-                         g, gravity_name(trans[g]), gdx, gdy,
-                         warning_color,frame_part_name(fp),color_reset));
+                         g, gdx, gdy));
 
                   if (trans[g])
                      set_window_gravity(fp->id, trans[g]);
