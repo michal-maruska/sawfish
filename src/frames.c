@@ -1708,11 +1708,20 @@ configure_frame_part (struct frame_part *fp)
             {
                 /* Generate an Expose event for the window. */
                 /* if (mask) */
+                if ((debug_frames & DB_FRAMES_RE))
+                    DB(("%s: %sXClearArea on %s%s (%x), serial: %d\n", __FUNCTION__,
+                        (frame_options & 2048)?"":"skipping ",
+                        move_color, color_reset,
+                        fp->id, NextRequest(dpy)));
+
                 if (frame_options & 2048)
                     XClearArea (dpy, fp->id, 0, 0, 0, 0, True);
             }
             else
             {
+                if ((debug_frames & DB_FRAMES_RE))
+                    DB(("%s: skipping XClearArea on window %x (%s%s)\n", __FUNCTION__, fp->id,
+                        move_color, color_reset));
             }
 	}
 	else
