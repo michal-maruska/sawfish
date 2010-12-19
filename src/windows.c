@@ -28,6 +28,7 @@
 #include "debug.h"
 #include "debug-colors.h"
 int debug_windows;
+extern int frame_options;
 
 
 Lisp_Window *window_list;
