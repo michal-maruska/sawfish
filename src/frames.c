@@ -1773,6 +1773,9 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
    int dw = w - win->attr.width;
    int dh = h - win->attr.height;
 
+   if (debug_frames & DB_FRAMES_PARTS_CHANGE)
+      DB(("%s (%s) dx/y %d/%d  dw/dh %d/%d\n", __FUNCTION__, rep_STR(win->name),
+          dx,dy,  dw,dh));
 
    /* this should be exact same behaviour
     *
@@ -1799,6 +1802,9 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
       right_x = bottom_y = 0;
 
 
+   if (debug_frames & DB_FRAMES_FRAME)
+      DB(("%s (%s) bounding box seems %d/%d - %d/%d \n", __FUNCTION__, rep_STR(win->name),
+          left_x, top_y, right_x, bottom_y));
 
 
    rep_PUSHGC(gc_win, rep_win);     /* what about gen_list ? ... it's `under' win ? */
@@ -1877,6 +1883,12 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
    }
 
    /* now we have simple values (attributes), no need to execute Lisp */
+   if (debug_frames & DB_FRAMES_FRAME)
+      DB(("\n%s: after %sbuilding the %d parts bounding box seems %d/%d - %d/%d\n",
+          __FUNCTION__, regen?"RE-":"",
+          nparts,
+          left_x, top_y, right_x, bottom_y));
+
    {
       /* update the attributes for the frame/client-window dimensions & position: */
       int new_w = right_x - left_x;
@@ -1885,6 +1897,13 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
       bigger = (new_w > win->frame_width
                 || new_h > win->frame_height);
 
+      if (debug_frames & DB_FRAMES_FRAME) {
+         if (new_w != win->frame_width || new_h != win->frame_height)
+            DB(("frame size different: %d %d, %d %d\n", win->frame_width, new_w,
+                win->frame_height, new_h));
+         else
+            DB(("frame size remains same\n"));
+      };
       /* mmc:  here the problem of mxflat! */
       /* adjust frame position to keep absolute client position constant */
       win->attr.x += left_x  - win->frame_x;
@@ -1896,6 +1915,10 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
       win->frame_width = new_w;
       win->frame_height = new_h;
    }
+
+   if (debug_frames & DB_FRAMES_FRAME)
+      DB((" bounding box: x=%d y=%d width=%d height=%d\n",
+          left_x, top_y, win->frame_width, win->frame_height));
 
    /* when does this happen? */
    if (win->reparented && bigger) /* mmc: why ....if it's bigger,
@@ -1936,6 +1959,9 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
        */
       if (frame_options & 1024)
          {
+            if (debug_frames & 1024)
+               DB(("position D: %d,%d, size: %d,%d ...frame window (D = delta):\n",
+                   dx, dy, dw, dh));
             /* if dx == 0    South gravity, or even West?
              * if dy == 0    East or even NorthEast ?*/
             for (fp = win->frame_parts; fp != 0; fp = fp->next)
@@ -1996,10 +2022,27 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
                   };
 
                   /* if not equal in some  */
+
+                  /*  */
+                  if (debug_frames & 1024)
+                     DB(("position D: %x(req %u): %d,%d, size: %d,%d -> g=%d %s ->D %d,%d"
+                         "(%s%s%s)\n",
+                         fp->id, NextRequest(dpy),
+                         fdx, fdy, fdw, fdh,
+                         g, gravity_name(trans[g]), gdx, gdy,
+                         warning_color,frame_part_name(fp),color_reset));
+
                   if (trans[g])
                      set_window_gravity(fp->id, trans[g]);
                   else
                      /* fixme! */
+                     if (debug_frames & 1024)
+                        DB(("%d x %d @ %d,%d -> %d x %d @ %d,%d\n",
+                            fp->drawn.width,fp->drawn.height,
+                            fp->drawn.x, fp->drawn.y,
+                            fp->width, fp->height,
+                            fp->x - win->frame_x, /* + ? */
+                            fp->y - win->frame_y));
                   {
                      /* why do we keep fp->x relative to the client window?
                       *
@@ -2059,6 +2102,20 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
                         }
                      if (mask)
                         {
+                           if (debug_frames & 1024)
+                              {
+                                 DB(("resizing the FP "));
+                                 if (mask & CWX)
+                                    DB(("x: %d -> %d ", fp->drawn.x, attr.x));
+                                 if (mask & CWY)
+                                    DB(("y: %d -> %d ", fp->drawn.y, attr.y));
+
+                                 if (mask & CWWidth)
+                                    DB(("w: %d -> %d ", fp->drawn.width, attr.width));
+                                 if (mask & CWHeight)
+                                    DB(("h: %d -> %d ", fp->drawn.height, attr.height));
+                                 DB(("\n"));
+                              }
                            /* there is a bug! Sometimes the buttons get North, and not
                             * NorthEast. Does the scheme code make errors on rounding ?*/
                            if (mask & CWHeight) {
@@ -2082,6 +2139,11 @@ move_resize_frame(Lisp_Window *win, int x,int y,int w,int h)
                };
          };
 
+      if (debug_frames & 1024)
+         DB(("%sXMoveResizeWindow %s: %d x %d  @ %d,%d  request: %d\n",
+             move_color, color_reset,
+             win->id, win->attr.x, win->attr.y, win->frame_width, win->frame_height,
+             NextRequest(dpy)));
       XMoveResizeWindow (dpy, win->frame, win->attr.x, win->attr.y,
                          win->frame_width, win->frame_height);
 
