@@ -374,7 +374,7 @@ DEFUN("set-dont-allow-events", Fset_dont_allow_events, Sset_dont_allow_events, (
     return set_int_variable(&dont_allow_events, debug);
 }
 
-int frame_options;
+extern int frame_options;
 DEFUN("set-frame-options", Fset_frame_options, Sset_frame_options, (repv debug), rep_Subr1) /*
 ::doc:sawfish.wm.events::set-frame-options
 set-frame-options 0/1
