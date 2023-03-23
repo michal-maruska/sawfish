@@ -118,6 +118,7 @@ static int all_lock_combs[2*2*2];
 static unsigned long
 direct_modifiers (unsigned long mods)
 {
+    /* mmc: wm_mod is the bit in X modmap. */
     /* Do this first, since it may contain other indirect mods */
     if (wm_mod != 0 && (mods & EV_MOD_WM))
 	mods = (mods & ~EV_MOD_WM) | wm_mod;
@@ -665,6 +666,7 @@ struct key_def {
     unsigned long mods, code;
 };
 
+/* why not another struct for modifiers? */
 static struct key_def default_mods[] = {
     { "S",	  ShiftMask },
     { "Shift",	  ShiftMask },
