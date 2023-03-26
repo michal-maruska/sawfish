@@ -158,7 +158,7 @@ indirect_modifiers (unsigned long mods)
 }
 
 /* Translate the X key or button event XEV to *CODE and *MODS */
-static bool
+bool
 translate_event(unsigned long *code, unsigned long *mods, XEvent *xev)
 {
     repv multi_click_delay;
@@ -892,7 +892,7 @@ error:
 }
 
 /* Constructs the name of the event defined by CODE and MODS in BUF.  */
-static bool
+bool
 lookup_event_name(char *buf, unsigned long code, unsigned long mods)
 {
     int i;

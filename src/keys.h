@@ -103,4 +103,6 @@ enum {
 #define KEY_EVENT(v)	rep_CDR(v)
 #define MAKE_KEY(e, c)	Fcons(c, e)
 
+extern bool translate_event(unsigned long *code, unsigned long *mods, XEvent *xev);
+extern bool lookup_event_name(char *buf, unsigned long code, unsigned long mods);
 #endif /* SAWFISH_KEYS_H */

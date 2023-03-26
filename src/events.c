@@ -32,6 +32,7 @@
 #include <glib.h>
 #include <stdio.h>
 
+#include "keys.h"
 #include "debug.h"
 #include "debug-colors.h"
 int debug_events;
