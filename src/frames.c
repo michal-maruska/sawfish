@@ -1391,8 +1391,8 @@ build_frame_part (struct frame_part *fp)
 	fp->rendered_image = Qnil;
 
     if (debug_frames)
-    DB(("  part: x=%d y=%d width=%d height=%d\n",
-	fp->x, fp->y, fp->width, fp->height));
+	DB(("  part: x=%d y=%d width=%d height=%d\n",
+	    fp->x, fp->y, fp->width, fp->height));
 
     ret = TRUE;
 
@@ -1508,7 +1508,7 @@ list_frame_generator (Lisp_Window *w)
 	right_x = bottom_y = 0;
 
     if (debug_frames)
-    DB(("list_frame_generator(%s)\n", rep_STR(w->name)));
+	DB(("list_frame_generator(%s)\n", rep_STR(w->name)));
 
     while (gen_list != Qnil && rep_SYMBOLP(gen_list) && !rep_INTERRUPTP)
     {
@@ -1592,8 +1592,8 @@ list_frame_generator (Lisp_Window *w)
     w->frame_y = top_y;
 
     if (debug_frames)
-    DB(("  bounding box: x=%d y=%d width=%d height=%d\n",
-	left_x, top_y, w->frame_width, w->frame_height));
+	DB(("  bounding box: x=%d y=%d width=%d height=%d\n",
+	    left_x, top_y, w->frame_width, w->frame_height));
 
     if (w->reparented && bigger)
 	set_frame_shapes (w, TRUE);
@@ -1736,8 +1736,8 @@ restack_frame_parts (Lisp_Window *w)
 void
 create_window_frame (Lisp_Window *w)
 {
-    if (debug_frames)        
-    DB(("create_window_frame (%s)\n", rep_STR(w->name)));
+    if (debug_frames)
+	DB(("create_window_frame (%s)\n", rep_STR(w->name)));
     if (w->frame_parts == 0)
     {
 	w->destroy_frame = 0;
