@@ -18,7 +18,7 @@ Build-Depends: gettext (>= 0.10.37),
                librep-dev (>= 0.90.7~),
                rep (>= 0.90.7~),
                libgdk-pixbuf-xlib-2.0-dev(>= 2.12.2),
-               libtool,libpango1.0-dev,libpangox-1.0-dev, libxft-dev, libxrandr-dev 
+               libtool,libpango1.0-dev, libxft-dev, libxrandr-dev
 Homepage: http://sawfish.wikia.com/
 
 Package: sawfish
