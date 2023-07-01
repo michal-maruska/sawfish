@@ -405,8 +405,6 @@ scripts/Makefile
 sounds/Makefile
 src/Makefile
 themes/Makefile
-debian/changelog
-debian/control
 ])
 
 AC_OUTPUT
