@@ -40,7 +40,7 @@
   ;; window order high-water-mark
   (defvar window-order-highest 1)
 
-  (define debug t)
+  (define debug nil)
   ;; return windows in MRU order
   (define (window-order #!optional workspace allow-iconified all-viewports general-filter)
     (let ((windows (managed-windows)))
