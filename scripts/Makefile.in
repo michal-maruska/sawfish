@@ -26,7 +26,7 @@ top_srcdir=@top_srcdir@
 srcdir=@srcdir@
 VPATH=@srcdir@:@top_srcdir@
 
-LISP_SRCS := sawfish-menu.jl sawfish-client.jl sawfish-about.jl
+LISP_SRCS := sawfish-client.jl sawfish-about.jl
 LISP_OBJS := $(LISP_SRCS:.jl=.jlc)
 
 REP_ENVIRON := $(REP_ENVIRON) REP_LOAD_PATH=$(top_srcdir)/lisp:$(top_builddir)/lisp
@@ -45,7 +45,7 @@ sawfish-about.jl : sawfish-about.jl.in ./Makefile
 	sed $(SUBSTS) $< >$@
 
 install : all installdirs
-	$(INSTALL_SCRIPT) sawfish-menu.jlc $(DESTDIR)$(sawfishexecdir)/sawfish-menu
+	# $(INSTALL_SCRIPT) sawfish-menu.jlc $(DESTDIR)$(sawfishexecdir)/sawfish-menu
 	$(INSTALL_SCRIPT) sawfish-client.jlc $(DESTDIR)$(bindir)/sawfish-client
 	$(INSTALL_SCRIPT) sawfish-about.jlc $(DESTDIR)$(sawfishexecdir)/sawfish-about
 	$(INSTALL_DATA) sawfish.png $(DESTDIR)$(sawfishdir)/sawfish.png
