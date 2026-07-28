@@ -1538,7 +1538,7 @@ report_event (XEvent *xev)
 
 	    /* mmc: I prefer to see (the key combination pressed/release) here,
 	     * se I run the lookup here:  */
-	    if (!translate_event (&code, &mods, &xev))
+	    if (!translate_event(&code, &mods, xev))
 		break;	       /*  why ??? */
 
 	    lookup_event_name(buf, code, mods);
