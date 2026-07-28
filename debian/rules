@@ -11,7 +11,7 @@ version = $(shell sed -n 's/version="\(.*\)"/\1/p' configure.in | head -n 1)
 	dh $@
 
 
-export DEB_CFLAGS_MAINT_APPEND = -fno-strict-aliasing
+export DEB_CFLAGS_MAINT_APPEND = -fno-strict-aliasing -Wno-attributes
 
 LC_ALL=
 LINGUAS=
