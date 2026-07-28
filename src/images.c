@@ -50,12 +50,19 @@ static ImlibData *imlib_id;
 GdkInterpType interp_type = GDK_INTERP_BILINEAR;
 #endif
 
+#include "debug.h"
+#include "debug-colors.h"
+int debug_images = 0;
+
 Colormap image_cmap;
 Visual *image_visual;
 int image_depth;
 
 DEFSYM(image_load_path, "image-load-path");
 DEFSYM(image_directory, "image-directory");
+
+/* mmc: I want to (put image 'file "source-file"), in C! */
+DEFSYM(file, "file");
 
 DEFSYM(red, "red");
 DEFSYM(green, "green");
@@ -213,8 +220,11 @@ string). PLIST defines the property list of the image.
 	image_t im = load_image (rep_STR(file));
 	if (delete)
 	    Fdelete_file (file);
-	if (im != 0)
-	    return make_image (im, plist);
+	 if (im != 0) {
+	     Lisp_Image* lim = VIMAGE(make_image (im, plist));
+	     Fimage_put(rep_VAL(lim), Qfile, file);
+	     return rep_VAL(lim);
+	 }
     }
     return Fsignal (Qerror, rep_list_2(rep_string_dup("no such image"), file));
 }
@@ -505,7 +515,7 @@ the bottom right of the image.
     return image;
 }
 
-DEFUN("image-get", Fimage_get, Simage_get, (repv win, repv prop), rep_Subr2) /*
+DEFUN("image-get", Fimage_get, Simage_get, (repv image, repv prop), rep_Subr2) /*
 ::doc:sawfish.wm.images#image-get::
 image-get IMAGE PROPERTY
 
@@ -513,8 +523,8 @@ Return the value of the property named PROPERTY (a symbol) of IMAGE.
 ::end:: */
 {
     repv plist;
-    rep_DECLARE1(win, IMAGEP);
-    plist = VIMAGE(win)->plist;
+    rep_DECLARE1(image, IMAGEP);
+    plist = VIMAGE(image)->plist;
     while (rep_CONSP(plist) && rep_CONSP(rep_CDR(plist)))
     {
 	if (rep_CAR(plist) == prop
@@ -529,7 +539,7 @@ Return the value of the property named PROPERTY (a symbol) of IMAGE.
 }
 
 DEFUN("image-put", Fimage_put, Simage_put,
-      (repv win, repv prop, repv val), rep_Subr3) /*
+      (repv image, repv prop, repv val), rep_Subr3) /*
 ::doc:sawfish.wm.images#image-put::
 image-put IMAGE PROPERTY VALUE
 
@@ -537,8 +547,8 @@ Set the value of the property named PROPERTY (a symbol) of IMAGE to VALUE.
 ::end:: */
 {
     repv plist;
-    rep_DECLARE1(win, IMAGEP);
-    plist = VIMAGE(win)->plist;
+    rep_DECLARE1(image, IMAGEP);
+    plist = VIMAGE(image)->plist;
     while (rep_CONSP(plist) && rep_CONSP(rep_CDR(plist)))
     {
 	if (rep_CAR(plist) == prop
@@ -550,9 +560,9 @@ Set the value of the property named PROPERTY (a symbol) of IMAGE to VALUE.
 	}
 	plist = rep_CDR(rep_CDR(plist));
     }
-    plist = Fcons(prop, Fcons(val, VIMAGE(win)->plist));
+    plist = Fcons(prop, Fcons(val, VIMAGE(image)->plist));
     if (plist != rep_NULL)
-	VIMAGE(win)->plist = plist;
+	VIMAGE(image)->plist = plist;
     return val;
 }
 
@@ -1001,9 +1011,6 @@ Tile SOURCE-IMAGE into DEST-IMAGE.
     int src_width, src_height;
     int dst_width, dst_height;
     int x,dst_y;
-#if defined HAVE_IMLIB
-    int src_y;
-#endif
 
     rep_DECLARE1(dst, IMAGEP);
     rep_DECLARE2(src, IMAGEP);
@@ -1015,16 +1022,19 @@ Tile SOURCE-IMAGE into DEST-IMAGE.
     dst_height = image_height (VIMAGE (dst));
 
 #if defined HAVE_IMLIB
-    for (dst_y = src_y = 0; dst_y < dst_height; dst_y++, src_y++)
     {
-	if (src_y >= src_height)
-	    src_y = 0;
-	for (x = 0; x < dst_width; x += src_width)
-	{
-	    memcpy (dst_im->rgb_data + dst_y*dst_width*3 + x*3,
-		    src_im->rgb_data + src_y*src_width*3,
-		    MIN (dst_width - x, src_width) * 3);
-	}
+        int src_y;
+        for (dst_y = src_y = 0; dst_y < dst_height; dst_y++, src_y++)
+        {
+            if (src_y >= src_height)
+                src_y = 0;
+            for (x = 0; x < dst_width; x += src_width)
+            {
+                memcpy (dst_im->rgb_data + dst_y*dst_width*3 + x*3,
+                        src_im->rgb_data + src_y*src_width*3,
+                        MIN (dst_width - x, src_width) * 3);
+            }
+        }
     }
 #elif defined HAVE_GDK_PIXBUF
     for (dst_y = 0; dst_y < dst_height; dst_y += src_height)
@@ -1427,8 +1437,10 @@ image_render (Lisp_Image *image, int width, int height,
     }
 #endif
 
+#if defined HAVE_IMLIB
     /* Imlib sometimes calls XSync (), which could hide events */
     rep_mark_input_pending (ConnectionNumber(dpy));
+#endif
 }
 
 void
@@ -1820,6 +1832,7 @@ images_init (void)
     rep_INTERN(red);
     rep_INTERN(green);
     rep_INTERN(blue);
+    rep_INTERN(file);
 }
 
 void

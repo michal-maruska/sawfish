@@ -276,7 +276,7 @@ extern void pixmap_cache_set (Lisp_Image *im, int width, int height,
 			      Pixmap p1, Pixmap p2);
 extern void pixmap_cache_flush_image (Lisp_Image *im);
 #endif
-extern repv Fpixmap_cache_control (repv max);
+extern repv Fpixmap_cache_control (repv max, repv reset);
 extern void pixmap_cache_init (void);
 
 /* from property-cache.c */
@@ -309,15 +309,15 @@ extern void focus_on_window (Lisp_Window *w);
 extern void focus_off_window (Lisp_Window *w);
 extern void fix_window_size (Lisp_Window *w);
 extern Lisp_Window *find_window_by_id (Window id);
-extern Lisp_Window *x_find_window_by_id (Window id);
 extern void get_window_protocols (Lisp_Window *w);
 extern void before_local_map (Lisp_Window *w);
 extern void after_local_map (Lisp_Window *w);
 extern void install_window_frame (Lisp_Window *w);
-extern void remove_window_frame (Lisp_Window *w);
+extern void remove_window_frame (Lisp_Window *w, bool restack);
 extern Lisp_Window *add_window (Window id);
-extern void remove_window (Lisp_Window *win, bool destroyed, bool from_error);
-extern void emit_pending_destroys (void);
+extern void mark_window_as_gone (Lisp_Window *w);
+extern void remove_window (Lisp_Window *win, bool destroyed);
+extern void destroy_window (Lisp_Window *w);
 extern repv Fwindow_get (repv win, repv prop, repv checker);
 extern void register_property_monitor (repv prop, void (*callback)
 				       (Lisp_Window *, repv, repv, repv));
@@ -365,5 +365,16 @@ extern void insert_in_stacking_list_above (Lisp_Window *w, Lisp_Window *x);
 extern void insert_in_stacking_list_below (Lisp_Window *w, Lisp_Window *x);
 extern void restack_window (Lisp_Window *w);
 extern repv make_stacking_list (void);
+extern void push_stacking_list_to_server(Lisp_Window**, int len);
+
+/* from mmc.c */
+extern const char* window_name (Lisp_Window *w);
+extern const char* window_name_id (Lisp_Window *w, Window id);
+extern char* my_timestamp(Time t);
+extern void describe_focus_out(XEvent *ev, Lisp_Window *w);
+extern void describe_focus_in(XEvent *ev,Lisp_Window *w);
+
+extern void set_init (void);
+
 
 #endif /* SAWFISH_SUBRS_H */

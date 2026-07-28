@@ -33,8 +33,9 @@
 	  sawfish.wm.util.rects
 	  sawfish.wm.windows
 	  sawfish.wm.workspace
-          sawfish.wm.viewport
-	  sawfish.wm.misc)
+	  sawfish.wm.misc
+	  sawfish.wm.state.configure
+	  )
 
   (define (define-window-strut w left top right bottom)
     (let ((new (list left top right bottom))
@@ -43,12 +44,21 @@
 	(window-put w 'workarea-strut new)
 	(call-hook 'workarea-changed-hook))))
 
-  (define (combined-struts #!key (space current-workspace))
+  ;; bug here?
+  (define (combined-struts #!key
+			     (space current-workspace)
+			     (head #f)
+			     (window #f))
     (let ((struts (mapcar (lambda (x)
 			    (window-get x 'workarea-strut))
 			  (filter-windows
 			   (lambda (x)
-			     (window-appears-in-workspace-p x space))))))
+			     (and
+			      (window-appears-in-workspace-p x space)
+			      (or (not head)
+				  (window-on-head x head))
+			      (not (eq window x))))))))
+
       (list (apply max (cons 0 (delq nil (mapcar car struts))))
 	    (apply max (cons 0 (delq nil (mapcar cadr struts))))
 	    (apply max (cons 0 (delq nil (mapcar caddr struts))))
@@ -66,28 +76,16 @@
       ;; the rectangle mustn't overlap any avoided windows
       ;; or span multiple heads, or be on a different head
       ;; to that requested
-      (let* ((viewport (viewport-at (nth 0 rect)
-                                    (nth 1 rect)))
-             (cur-vp (screen-viewport))
-             (x-offset (and viewport (* (screen-width)
-                                        (- (car viewport)
-                                           (car cur-vp)))))
-             (y-offset (and viewport (* (screen-height)
-                                        (- (cdr viewport)
-                                           (cdr cur-vp))))))
-        (let loop ((rest avoided))
-	  (cond ((null rest) (rect-within-head-p rect head))
-		((> (rect-2d-overlap
-		     (window-frame-dimensions (car rest))
-		     (let ((pos (window-position (car rest))))
-		       (if (window-get (car rest) 'sticky-viewport)
-			   (cons (+ (car pos) x-offset)
-				 (+ (cdr pos) y-offset))
-			 pos))
-		     rect)
-		    0)
-		 nil)
-		(t (loop (cdr rest)))))))
+      (let loop ((rest avoided))
+	(cond ((null rest) t)
+	      ((or (> (rect-2d-overlap
+		       (window-frame-dimensions (car rest))
+		       (window-position (car rest))
+		       rect) 0)
+		   (/= (rectangle-heads rect) 1)
+		   (and head (/= head (find-head (car rect) (cadr rect)))))
+	       nil)
+	      (t (loop (cdr rest))))))
 
     (let* ((grid (grid-from-edges (car edges) (cdr edges)))
 	   ;; find all possible rectangles
@@ -99,7 +97,7 @@
       (let ((max-area 0)
 	    (max-rect nil))
 	(mapc (lambda (rect)
-		(when (and (rect-within-viewport-p rect)
+		(when (and (rect-wholly-visible-p rect)
 			   (> (rectangle-area rect) max-area))
 		  (setq max-area (rectangle-area rect))
 		  (setq max-rect rect)))
@@ -126,8 +124,9 @@ not the current head (of WINDOW)."
 	   (rect (or (largest-rectangle-from-edges
 		      edges #:avoided avoided #:head head) head-rect)))
       ;; Shrink that to the union of all struts
+      ;; fixme: ignore the window! it's not limiting itself.
       (rectangle-intersection
-       rect (apply-struts-to-rect (combined-struts) head-rect))))
+       rect (apply-struts-to-rect (combined-struts #:head head #:window window) head-rect))))
 
   (define (calculate-workarea-from-struts #!key (workspace current-workspace))
     (apply-struts-to-rect (combined-struts workspace)
