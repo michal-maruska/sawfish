@@ -5,6 +5,10 @@ Maintainer: Christopher Roy Bratusek <zanghar@freenet.de>
 Standards-Version: 3.8.3
 Build-Depends: gettext (>= 0.10.37),
                debhelper (>= 7.0.0),
+               debhelper-compat (= 13),
+               dh-autoreconf,
+               autoconf,
+               automake,
                libxinerama-dev,
                libgmp3-dev (>= 4.1.4-8),
                texinfo (<< 4.11) | texinfo (>= 4.11.dfsg.1-3),
