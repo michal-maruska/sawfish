@@ -373,6 +373,7 @@ DEFUN("set-dont-allow-events", Fset_dont_allow_events, Sset_dont_allow_events, (
     DB(("set-dont-allow-events %d -> %d (now)\n", dont_allow_events, rep_INT(debug)));
     return set_int_variable(&dont_allow_events, debug);
 }
+#endif
 
 extern int frame_options;
 DEFUN("set-frame-options", Fset_frame_options, Sset_frame_options, (repv debug), rep_Subr1) /*
@@ -394,9 +395,6 @@ set-frame-options 0/1
    rep_DECLARE1 (debug, rep_INTP);
    return set_int_variable(&window_options, debug);
 }
-
-#endif // 0
-
 
 
 /* Run external program w/ UID  (su)
