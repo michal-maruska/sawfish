@@ -428,7 +428,7 @@ pango_load (Lisp_Font *f)
 	char *langname, *p;
 
 #ifdef HAVE_PANGO_XFT
-	pango_context = pango_xft_get_context (dpy, screen_num);
+	pango_context = pango_font_map_create_context (pango_xft_get_font_map (dpy, screen_num));
 #else
 	pango_context = pango_x_get_context (dpy, screen_num);
 #endif
