@@ -2,7 +2,6 @@
 
 export DH_VERBOSE=1
 
-include /usr/share/quilt/quilt.make
 
 version = $(shell sed -n 's/version="\(.*\)"/\1/p' configure.in | head -n 1)
 
@@ -29,7 +28,7 @@ LANG=
 export LC_ALL LINGUAS LANG
 
 configure: configure-stamp
-configure-stamp: $(QUILT_STAMPFN)
+configure-stamp:
 	dh_testdir
 
 	CFLAGS="$(CFLAGS)" ./configure --prefix=/usr --with-readline $(confflags)
