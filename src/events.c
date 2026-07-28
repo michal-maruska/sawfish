@@ -1632,7 +1632,7 @@ report_event (XEvent *xev)
 			 event_name_color,
 			 xev->type < LASTEvent ? event_names[xev->type] : "unknown", color_reset,
 			 event, id,
-			 (w) ? rep_STR (w->name) : (u_char *)"unknown"));
+			 (w) ? rep_STR (w->name) : (char *)"unknown"));
 		}
 	    } else {
 		/* give a small hint at the quantity.*/
