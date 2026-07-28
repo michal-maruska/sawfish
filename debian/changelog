@@ -1,3 +1,158 @@
+sawfish (1:1.12.1-maruska) unstable; urgency=medium
+
+  * base of color debugging, add errors.h
+  * mmc.c -- container for many custom functions
+  * make window_name  more useful
+  * window_name_id
+  * remove verbose tracing from property-cache
+  * debug frames.c
+  * reduce tracing in frames -- conditional
+  * windows.c debug:  Initialization & focus
+  * debug windows.c frame operations
+  * debug x.c
+  * debug in display.c  print_error
+  * debug pixmap-cache.c
+  * comments & debug functions.c
+  * debug window GC
+  * debug window Hooks
+  * debug window put
+  * expose set-frame-options
+  * ignore_atoms ... do not report them
+  * debug: warn about segfault bug
+  * functions.c ungrab return info
+  * functions.c save-under for message-window
+  * bugfix: when making X request, we might receive, and select will stuck
+  * Drop useless  prog_name.
+  * windows.c: mapped_not_override_p() is static
+  * windows.c XAddToSaveSet earlier
+  * handle_sync_input: process all, and mark the FD on exception
+  * GC windows focus-window
+  * possible segfault fix -- enter_notify/leave_notify of frame part
+  * at startup: reduce the events by not unmaping client windows.
+  * remove THK's racy check against unmap due to reparent
+  * remove_window overhaul:
+  * simplify & process NotifyUnmap also for GONE window
+  * windows.c change remove_window_frame signature
+  * my version of map_notify
+  * destroy_window  vs   GC
+  * simplify 3  reparent
+  * remove useless IF
+  * simplify: property_notify
+  * dead code
+  * update buid dependencies
+  * add auto
+  * stacking
+  * build-deps: + libgdk-pixbuf-xlib-2.0-dev
+  * For determinism keep stacking gone windows and until they are "destroyed".
+  * * Non-maintainer upload. * Fix FTBFS due to undefined reference to `pango_x_render', thanks to Emilio Pozuelo Monfort <pochu@debian.org> for the patch. Closes: #701837, #713619
+  * functions.c extra check in restack-windows
+  * sq root
+  * stacking: restack_window    more robust, but really?
+  * multiple definitions Qroot, Qcenter
+  * new stacking. (commit-restacking)
+  * sawfish.EL format
+  * When exiting, discard windows in the (reverse) stacking order
+  * Regrab keys, when modifiers (map) changes
+  * extend "make-image" to put 'file property with the source filename.
+  * cache: append_to_age_list rather than prepend.
+  * bugfix: don't Xungrab keys still in some Keymap
+  * fix: rename C parameters (win -> image)
+  * extend pixmap-cache-control to RESET & return more info (cache_length)
+  * When ungrabbing keys on a window, do it by 1 call.
+  * enforce rep_mark_input_pending is imlib only
+  * new pixmap-cache-images: return the list of all the images in cache
+  * add mmsystem, rep/trace
+  * Comments in key-bind.c
+  * restrict the scope of IMLIB2 specific variables/code
+  * Time-keeping. Keeping the most recently seen server timestamp
+  * Spaces in events.c
+  * complete DOC of current-event-window
+  * reloading: workspace
+  * ADT workspace
+  * select-workspace
+  * just replaced the viewport.jl with mine ?
+  * window-order:  general-filter (used?) and inside SHIFTED viewport
+  * moving-window  vs on-viewport-change
+  * adapt to viewport-hi
+  * better WS changing for display-window
+  * reload
+  * style
+  * drop add-swapped-properties to avoid cyclic dependency
+  * replacing with my lisp files
+  * fix in workspace.jl
+  * my old version of update-workspace-hints (wm-spec.jl)
+  * man Lisp fixes to get it running :)
+  * display-window ... change viewport (on the same WS)
+  * clean/format  x-cycle.jl, turn off tracing
+  * spaces
+  * window-head is about the window center point.
+  * new function: window-on-head
+  * treat struts per head.
+  * calculate-workarea .. for a window.
+  * prompt-window-position is a function now -- dynamic position
+  * space
+  * events: use the macro WINDOW_FOCUSED_P()
+  * introduce focus_request, desired_focus_window, requested_focus_id, focus-skipped-hook
+  * Since we know requested focus, we can process FocusIn better
+  * comments & non-changing code
+  * ungrab_into_focused_window:  program only once
+  * new Grab strategy. -- todo: needs support from Lisp: new grab_counter
+  * soft-grabbing in Lisp
+  * allow-events before recursive-edit. Don't allow-events after read-event
+  * allow-events on Prompt
+  * Trick to have a Focus event (in response to WM_TAKE_FOCUS)
+  * fix problem with recursive-edit !! ...
+  * focused
+  * events.c: report_event() but looks at eval_key_release_events
+  * debug:  focus_change
+  * verbose on focus_out
+  * BIG comments
+  * comment 2
+  * verbose focus_in
+  * allow events to call into keys.c translate_event(), and lookup_event_name()
+  * Verbose: ungrab_into_focused_window
+  * verbose on ... ungrab/allowevents
+  * debian: fix dependency on rep jl files.
+  * GITSHA
+  * On startup, use a transaction for the C initial-processing-code.
+  * debian: drop dependency on non-existing libpangox-1.0-dev
+  * drop the debian packaging files from the SF build system
+  * drop logging on each window-order
+  * did emacs-common rename flavor symbol?
+  * move_resize_frame
+  * refresh_frame_parts  conditionally  ????
+  * frames: divide the 2 cases for list_frame_generator (+ bug fix)
+  *  restack the Frame window
+  * px None
+  * frame_destroyed
+  * shaped
+  * DRAWN
+  * MASK piecewise ??  .. thanks to drawn.x ?
+  * gravity
+  * return CHANGED ... preparation for DBE  refresh_frame_part
+  * focused  2
+  * dbe
+  * optimize:  refresh_frame_parts ... only VISIBLE
+  * buttons
+  * options
+  * expose
+  * experiment  window position
+  * comment
+  * clear Area
+  * rm define cursor
+  * comment
+  * debug
+  * debug in   move_resize_frame
+  * debug in configure_frame_part
+  * drop debug
+  * conditional verbosity frames.c
+  * drop frame_part_name gravity_name
+  * add frame_options
+  * frame_options: multiple definitions
+  * ci: build using my organization's CI for debian-packages
+
+ -- Michal Maruska <mmaruska@gmail.com>  Tue, 28 Jul 2026 15:06:58 +0200
+
 sawfish (1:1.8.0~101219-1nano) unstable; urgency=low
 
   * New upstream GIT
