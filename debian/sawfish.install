@@ -7,4 +7,4 @@ usr/share/xsessions/sawfish.desktop
 usr/share/sawfish/*/lisp/sawfish/cfg/main.jlc
 usr/include/sawfish/
 usr/lib
-usr/bin
+usr/bin/sawfish
