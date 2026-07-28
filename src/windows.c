@@ -1260,11 +1260,11 @@ Ensure that WINDOW (if it has been mapped) is visible. See `hide-window'.
 	    }
 	    if (VWIN(win)->frame)
 		XMapWindow (dpy, VWIN(win)->frame);
-            mark_all_frame_parts_as_exposed(win);
+            mark_all_frame_parts_as_exposed(VWIN(win));
 	}
 	VWIN(win)->visible = 1;
 
-        refresh_frame_parts(win);
+        refresh_frame_parts(VWIN(win));
         Fungrab_server ();
     }
     return win;
