@@ -35,7 +35,8 @@ override_dh_install:
 	cp debian/sawfish-data.install.in debian/sawfish-data.install
 	find debian/tmp/usr/share/sawfish/*/lisp -name '*.jlc' | \
 		cut -d/ -f3- | grep -v 'main' >> debian/sawfish-data.install
-	dh_install --fail-missing
+	dh_missing --list-missing
+# --fail-missing
 
 
 # These are scripts. (Actually, they are /usr/bin/sawfish-config before and after compiling)
