@@ -225,11 +225,11 @@ PKG_CHECK_MODULES(LIBREP, librep >= ${REP_MIN_VER}
 		  ,AC_MSG_ERROR([cannot locate librep >= $REP_MIN_VER]))
 
 dnl Check for rep-gtk
-REP_GTK_MIN_VER="0.90.3"
+dnl REP_GTK_MIN_VER="0.90.3"
 
-PKG_CHECK_MODULES(REP_GTK, rep-gtk >= ${REP_GTK_MIN_VER}
-		  ,
-		  ,AC_MSG_ERROR([cannot locate rep-gtk >= $REP_GTK_MIN_VER]))
+dnl PKG_CHECK_MODULES(REP_GTK, rep-gtk >= ${REP_GTK_MIN_VER}
+dnl 		  ,
+dnl 		  ,AC_MSG_ERROR([cannot locate rep-gtk >= $REP_GTK_MIN_VER]))
 
 dnl Check for GTK+2
 GTK_MIN_VER="2.12.0"
