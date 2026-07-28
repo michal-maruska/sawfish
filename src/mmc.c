@@ -168,7 +168,7 @@ describe_focus_out(XEvent *ev, Lisp_Window *w)
     if (!w)
 	w = find_window_by_frame (ev->xfocus.window);
 
-    char* window_name = window_name_id (w,ev->xfocus.window);
+    const char *window_name = window_name_id (w,ev->xfocus.window);
     int color= ((ev->xfocus.mode) == NotifyGrab)? 36:
 	(((ev->xfocus.mode) == NotifyUngrab)?34:33);
 
