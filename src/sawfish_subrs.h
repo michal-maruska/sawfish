@@ -373,6 +373,7 @@ extern const char* window_name_id (Lisp_Window *w, Window id);
 extern char* my_timestamp(Time t);
 extern void describe_focus_out(XEvent *ev, Lisp_Window *w);
 extern void describe_focus_in(XEvent *ev,Lisp_Window *w);
+extern Lisp_Window* find_window_by_frame (Window id);
 
 extern void set_init (void);
 
