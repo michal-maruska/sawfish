@@ -48,7 +48,20 @@
 # define rep_INTERFACE 7		/* rep 0.10 */
 #endif
 
+#if !defined(__cplusplus) && (__STDC_VERSION__ < 202311L)
 typedef int bool;
+#define true 1
+#define false 0
+#endif
+
+#ifndef TRUE
+# define TRUE 1
+#endif
+
+#ifndef FALSE
+# define FALSE 0
+#endif
+
 
 #ifdef rep_HAVE_UNIX
 # define HAVE_UNIX 1
@@ -354,13 +367,6 @@ enum exit_codes {
 # define NULL 0
 #endif
 
-#ifndef TRUE
-# define TRUE 1
-#endif
-
-#ifndef FALSE
-# define FALSE 0
-#endif
 
 #if !defined (DEBUG)
 # define DB(x) do { ; } while (0)
