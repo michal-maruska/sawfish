@@ -38,7 +38,8 @@ override_dh_install:
 	cat debian/sawfish-data.install
 
 override_dh_missing:
-	dh_missing --list-missing
+	dh_missing --fail-missing
+#list-missing
 
 # documentation is in 1 package, others have symlink
 override_dh_installdocs:
