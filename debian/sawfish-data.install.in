@@ -1,3 +1,4 @@
+usr/bin/sawfish-client
 debian/README.themes usr/share/sawfish/themes
 usr/share/locale
 usr/share/sawfish/*/lisp/sawfish/wm/autoload.jl
