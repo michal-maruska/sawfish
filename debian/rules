@@ -42,5 +42,5 @@ override_dh_install:
 # Should that be a symlink?
 override_dh_fixperms:
 	dh_fixperms
-	chmod a+x debian/sawfish/usr/share/sawfish/$(version)/lisp/sawfish/cfg/main.jlc
-	chmod a+x debian/sawfish-lisp-source/usr/share/sawfish/$(version)/lisp/sawfish/cfg/main.jl
+	# chmod a+x debian/sawfish/usr/share/sawfish/$(version)/lisp/sawfish/cfg/main.jlc
+	# chmod a+x debian/sawfish-lisp-source/usr/share/sawfish/$(version)/lisp/sawfish/cfg/main.jl
