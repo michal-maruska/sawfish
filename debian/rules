@@ -39,6 +39,13 @@ override_dh_install:
 	dh_missing $@ --list-missing
 # --fail-missing
 
+# documentation is in 1 package, others have symlink
+override_dh_installdocs:
+	dh_installdocs --link-doc=sawfish-data -psawfish-lisp-source
+	dh_installdocs --link-doc=sawfish -psawfish-dbg
+	# to both architecture: all and Any
+	dh_installdocs -psawfish-data -psawfish
+
 
 # These are scripts. (Actually, they are /usr/bin/sawfish-config before and after compiling)
 # Should that be a symlink?
