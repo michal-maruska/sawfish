@@ -27,6 +27,10 @@
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
 
+#include "debug.h"
+#include "debug-colors.h"
+int debug_keys;
+
 /* max number of milliseconds between successive-clicks */
 #define DEFAULT_DOUBLE_CLICK_TIME 250
 
@@ -83,6 +87,9 @@ DEFSYM(multi_click_delay, "multi-click-delay");
    Values are bits in key/button event -> state field. */
 static unsigned long meta_mod, alt_mod, hyper_mod, super_mod;
 
+DEFSYM(grab_counter, "grab-counter");
+extern repv Qsync_keyboard;
+
 /* The user-customizable modifier; used for default key bindings. This
    shouldn't include any bits that don't have a fixed meaning. */
 static unsigned long wm_mod = EV_MOD_META;
@@ -118,6 +125,7 @@ static int all_lock_combs[2*2*2];
 static unsigned long
 direct_modifiers (unsigned long mods)
 {
+    /* mmc: wm_mod is the bit in X modmap. */
     /* Do this first, since it may contain other indirect mods */
     if (wm_mod != 0 && (mods & EV_MOD_WM))
 	mods = (mods & ~EV_MOD_WM) | wm_mod;
@@ -151,7 +159,7 @@ indirect_modifiers (unsigned long mods)
 }
 
 /* Translate the X key or button event XEV to *CODE and *MODS */
-static bool
+bool
 translate_event(unsigned long *code, unsigned long *mods, XEvent *xev)
 {
     repv multi_click_delay;
@@ -205,20 +213,20 @@ translate_event(unsigned long *code, unsigned long *mods, XEvent *xev)
     case ButtonPress:
 
 	if(xev->xbutton.button == last_click_button)
-        {
-            multi_click_delay = global_symbol_value (Qmulti_click_delay);
-            if (rep_INTP(multi_click_delay))
-                delay = rep_INT(multi_click_delay);
-            else
-                delay = DEFAULT_DOUBLE_CLICK_TIME;
-  
-            if (xev->xbutton.time < (last_click + delay))
-            {
-                click_count++;
-            }
-            else
-                click_count = 1;
-        }
+	{
+	    multi_click_delay = global_symbol_value (Qmulti_click_delay);
+	    if (rep_INTP(multi_click_delay))
+		delay = rep_INT(multi_click_delay);
+	    else
+		delay = DEFAULT_DOUBLE_CLICK_TIME;
+
+	    if (xev->xbutton.time < (last_click + delay))
+	    {
+		click_count++;
+	    }
+	    else
+		click_count = 1;
+	}
 	else
 	    click_count = 1;
 
@@ -493,7 +501,7 @@ lookup_binding(unsigned long code, unsigned long mods, bool (*callback)(repv key
 	    if (!k && current_window)
 	    {
 		/* 3. search focused/pointer window keymap property */
-	        tem = Fwindow_get (rep_VAL(current_window), Qkeymap, Qnil);
+		tem = Fwindow_get (rep_VAL(current_window), Qkeymap, Qnil);
 		if (tem && tem != Qnil)
 		    k = search_keymap(tem, code, mods, callback);
 	    }
@@ -570,6 +578,27 @@ lookup_event_binding (unsigned long code, unsigned long mods, repv context_map)
     return lookup_binding(code, mods, eval_input_callback, context_map, w);
 }
 
+/* If something goes wrong, the input should go a window, which has all keys grabbed */
+void
+ungrab_into_focused_window (void)
+{
+    if (focus_request.sent)
+    {
+	if (debug_keys)
+	    DB(("not ungrabbing immediately, will wait for FocusIn\n"));
+	/* fixme: I should remark that we keep grab! */
+	focus_request.grabbed = TRUE;
+	focus_request.sent = FALSE;
+    }
+    else
+    {
+	if (debug_keys)
+	    DB(("no need for commit_queued_focus_change (no change in focus)-> "
+		"we can simply: Fungrab_keyboard\n"));
+	Fungrab_keyboard ();
+    }
+}
+
 /* Process the event CODE+MODS. OS-INPUT-MSG is the raw input event
    from the window-system, this is only used to cook a string from.  */
 repv
@@ -578,8 +607,25 @@ eval_input_event(repv context_map)
     unsigned long code, mods;
     repv result = Qnil, cmd, orig_next_keymap_path = next_keymap_path;
 
-    if (!translate_event (&code, &mods, current_x_event))
+    if (current_x_event->type == KeyRelease &&
+       (global_symbol_value (Qeval_key_release_events) == Qnil))
+    {
+	if (debug_keys)
+	    DB(("%s: released, not evalutated -> this should mean that we wanted something else\n",
+		__FUNCTION__));
+	/* we need the next event (instead of this one). */
+	Fallow_events(Qsync_keyboard);
 	return Qnil;
+    }
+
+    if (!translate_event (&code, &mods, current_x_event))
+    {
+	/* this should mean that we wanted something else */
+	if (debug_keys)
+	    DB(("%s: couldn't translate_event (key event)!!! -> skipping\n", __FUNCTION__));
+	Fallow_events(Qsync_keyboard);
+	return Qnil;
+    }
 
     event_buf[event_index++] = code;
     event_buf[event_index++] = mods;
@@ -604,6 +650,13 @@ eval_input_event(repv context_map)
     {
 	/* Found a binding for this event; evaluate it. */
 	result = rep_call_lisp1 (Fsymbol_value (Qcall_command, Qt), cmd);
+
+	if (rep_INT(global_symbol_value(Qgrab_counter)) == 0)
+	    ungrab_into_focused_window();
+	else
+	{
+	    Fallow_events(Qsync_keyboard);
+	}
     }
     else if(next_keymap_path != rep_NULL)
     {
@@ -613,6 +666,7 @@ eval_input_event(repv context_map)
 
 	/* Grab the input devices for the next event */
 	Fgrab_keyboard (focus_window ? rep_VAL(focus_window) : Qnil, Qt, Qt);
+	Fallow_events(Qsync_keyboard);
     }
     else if(orig_next_keymap_path != rep_NULL
 	    && orig_next_keymap_path != Qglobal_keymap)
@@ -621,6 +675,7 @@ eval_input_event(repv context_map)
 	   argument for the next command and beep. */
 	Fset (Qprefix_arg, Qnil);
 	Fbeep();
+	Fungrab_keyboard();
     }
     else
     {
@@ -628,13 +683,27 @@ eval_input_event(repv context_map)
 
 	repv hook = global_symbol_value (Qunbound_key_hook);
 	if (!rep_VOIDP (hook) && hook != Qnil)
+	{
+	    /* Lisp must handle	 allow-event / ungrab-keyboard ! */
 	    result = Fcall_hook(Qunbound_key_hook, Qnil, Qor);
+
+	    if (!(rep_INT(global_symbol_value(Qgrab_counter))))
+		ungrab_into_focused_window();
+	    else
+		if (!rep_throw_value)
+		    Fallow_events (Qsync_keyboard);
+		else
+		    DB(("%s: lisp throwing, we don't allow_events now.\n", __FUNCTION__));
+	}
+	/* fixme! oh this seems serious! But i think it never happened to me.*/
 	else if (rep_recurse_depth == 0
 		 && (mods & (EV_TYPE_KEY | EV_MOD_RELEASE)) == EV_TYPE_KEY)
 	{
 	    /* We're receiving events that we have no way of handling..
 	       I think this gives us justification in aborting in case
 	       we've got stuck with an unbreakable grab somehow.. */
+	    if (debug_keys)
+		DB(("K %s: unbound key-> ungrab\n", __FUNCTION__));
 	    Fungrab_keyboard ();
 	    Fungrab_pointer ();
 	    result = Fthrow (Qtop_level, Qnil);
@@ -643,7 +712,7 @@ eval_input_event(repv context_map)
 
     /* Out of a multi-key sequence, ungrab */
     if (orig_next_keymap_path && !next_keymap_path)
-	Fungrab_keyboard ();
+    {};
 
     last_event[0] = current_event[0];
     last_event[1] = current_event[1];
@@ -665,6 +734,7 @@ struct key_def {
     unsigned long mods, code;
 };
 
+/* why not another struct for modifiers? */
 static struct key_def default_mods[] = {
     { "S",	  ShiftMask },
     { "Shift",	  ShiftMask },
@@ -836,15 +906,15 @@ error:
 }
 
 /* Constructs the name of the event defined by CODE and MODS in BUF.  */
-static bool
+bool
 lookup_event_name(char *buf, unsigned long code, unsigned long mods)
 {
     int i;
     struct key_def *x;
     unsigned long type = mods & EV_TYPE_MASK;
     char
-        *end = buf,
-        *tem;
+	*end = buf,
+	*tem;
 
     *buf = '\0';
 
@@ -1089,7 +1159,7 @@ a Lisp function hadn't been called instead.
 	return Fsignal(Qerror, rep_LIST_1(rep_VAL(&not_in_handler)));
 
     len = XLookupString(&current_x_event->xkey,
-                        buf, sizeof (buf) - 1, &ks, NULL);
+			buf, sizeof (buf) - 1, &ks, NULL);
     if(len > 0)
 	return rep_string_dupn(buf, len);
     else
@@ -1363,7 +1433,7 @@ again:
     {
 	Window d1, *d2, parent;
 	unsigned int d3;
-	    
+
 	XQueryTree (dpy, w, &d1, &parent, &d2, &d3);
 	if (d2 != 0)
 	    XFree (d2);
@@ -1403,7 +1473,7 @@ synthesize-event EVENT WINDOW [PROPAGATE]
     {
 	x_offset = -VWIN(win)->attr.x;
 	y_offset = -VWIN(win)->attr.y;
-	if (VWIN(win)->reparented) 
+	if (VWIN(win)->reparented)
 	{
 	    x_offset += VWIN(win)->frame_x;
 	    y_offset += VWIN(win)->frame_y;
@@ -1640,8 +1710,40 @@ build_lock_mods (void)
 void
 update_keyboard_mapping (void)
 {
+    /* Store the current (i.e. old values) */
+    unsigned long  x_meta_mod, x_alt_mod, x_hyper_mod, x_super_mod;
+
+    x_meta_mod = meta_mod;
+    x_alt_mod = alt_mod;
+    x_hyper_mod = hyper_mod;
+    x_super_mod = super_mod;
+
+    /* now find the new ones: */
     find_meta ();
     build_lock_mods ();
+
+    /* if anything changed, regrab: */
+    // fixme: it should do it anyway! changes in the keysym->keycode mapping are relevant too.
+    if (! ( (x_meta_mod == meta_mod)
+	    && (x_alt_mod == alt_mod)
+	    && (x_hyper_mod == hyper_mod)
+	    && (x_super_mod == super_mod)))
+    {
+	Lisp_Window *w;
+
+	/* I would like to do it lazily. That is only when a window is focused! */
+	Fgrab_keyboard (Qnil, Qt, Qt);
+	for (w = window_list; w != 0; w = w->next)
+	{
+	    if (!WINDOW_IS_GONE_P (w))
+	    {
+		grab_window_events (w, FALSE);
+		/* re-grab! */
+		grab_window_events (w, TRUE);
+	    }
+	}
+	Fungrab_keyboard ();
+    }
 }
 
 static void
@@ -1754,8 +1856,7 @@ ungrab_event (Window grab_win, repv ev)
 				grab_win);
 		}
 	    }
-	    else
-		XUngrabKey (dpy, code, state, grab_win);
+	    XUngrabKey (dpy, code, state, grab_win);
 	}
 	break;
 
@@ -1800,8 +1901,23 @@ grab_keymap_event (repv km, long code, long mods, bool grab)
 	    repv tem = Fwindow_get (rep_VAL(w), Qkeymap, Qnil);
 	    if (rep_SYMBOLP(tem) && tem != Qnil)
 		tem = Fsymbol_value (tem, Qt);
+	    /* If this keymap concerns the window ..*/
 	    if (km == global || tem == km)
-		(grab ? grab_event : ungrab_event) (w->id, ev);
+	    {
+		/* .. If a key+modifier is not in one of the 2 relevant keymaps,
+		 * it's NOT sufficient to conclude it should be ungrabbed.
+		 * It's OR, so we have to test both keymaps! so here the 2nd one:
+		 * How about W- vs. other modifiers? it's also OR. */
+		if (((km == global) ?
+		     search_keymap(tem, code, mods, 0) :
+		     (search_keymap(global, code,  mods, 0))))
+		{
+		}
+		else
+		{
+		    (grab ? grab_event : ungrab_event) (w->id, ev);
+		}
+	    }
 	}
     }
 }
@@ -1855,13 +1971,20 @@ grab_keymap_events (Window grab_win, repv keymap, bool grab)
 void
 grab_window_events (Lisp_Window *w, bool grab)
 {
-    repv tem;
-    tem = Fsymbol_value (Qglobal_keymap, Qt);
-    if (tem != Qnil && !rep_VOIDP(tem) && !WINDOW_IS_GONE_P (w))
-	grab_keymap_events (w->id, tem, grab);
-    tem = Fwindow_get (rep_VAL(w), Qkeymap, Qnil);
-    if (tem && tem != Qnil && !WINDOW_IS_GONE_P (w))
-	grab_keymap_events (w->id, tem, grab);
+    if (grab == FALSE) {
+	if (!WINDOW_IS_GONE_P (w))
+	    /* mmc: one of my first improvements.... */
+	    XUngrabKey (dpy, AnyKey,AnyModifier, w->id);
+    } else {
+	repv tem;
+
+	tem = Fsymbol_value (Qglobal_keymap, Qt);
+	if (tem != Qnil && !rep_VOIDP(tem) && !WINDOW_IS_GONE_P (w))
+	    grab_keymap_events (w->id, tem, grab);
+	tem = Fwindow_get (rep_VAL(w), Qkeymap, Qnil);
+	if (tem && tem != Qnil && !WINDOW_IS_GONE_P (w))
+	    grab_keymap_events (w->id, tem, grab);
+    }
 }
 
 static void
@@ -1969,6 +2092,8 @@ keys_init(void)
     Fset (Qsuper_keysyms, Qnil);
     rep_INTERN_SPECIAL(multi_click_delay);
     Fset (Qmulti_click_delay, rep_MAKE_INT(DEFAULT_DOUBLE_CLICK_TIME));
+    rep_INTERN_SPECIAL(grab_counter);
+    Fset (Qgrab_counter, rep_MAKE_INT(0));
 
     rep_INTERN_SPECIAL(this_command);
     rep_INTERN_SPECIAL(last_command);
@@ -1983,7 +2108,7 @@ keys_init(void)
     rep_INTERN(call_command);
 
     rep_mark_static(&next_keymap_path);
- 
+
     register_property_monitor (Qkeymap, keymap_prop_change);
 
     if (!batch_mode_p ())

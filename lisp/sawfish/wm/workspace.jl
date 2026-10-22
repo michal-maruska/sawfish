@@ -68,6 +68,7 @@
 	    workspace-limits
 	    workspace-id-to-logical
 	    workspace-id-from-logical
+	    workspace-name
 	    move-window-to-workspace
 	    copy-window-to-workspace
 	    insert-workspace
@@ -115,7 +116,13 @@
 	  sawfish.wm.commands
 	  sawfish.wm.custom
 	  sawfish.wm.session.init
-	  sawfish.wm.commands.launcher)
+	  sawfish.wm.commands.launcher
+
+          sawfish.wm.adt
+	  sawfish.wm.viewport
+	  sawfish.wm.viewport-hi
+          sawfish.wm.util.x
+	  )
 
 ;;; Options and variables
 
@@ -142,11 +149,26 @@ a window"
     :type boolean
     :group workspace)
 
-  ;; Currently active workspace, an integer
-  (define current-workspace 0)
+  ;; How to identify workspaces:
+  ;; WS were previously implemented mainly by storing numbers into properties of Windows.
+  ;; I now added a list of objects (records) --- ws-list
+  ;; That way, I can keep all the information in 1 place, rather than in separate lists:
+  ;; name, current vieport
 
-  (define first-interesting-workspace nil)
-  (define last-interesting-workspace nil)
+
+  ;; How a WS can be identified:
+  ;; * Numbering  SF starts w/ 1 WS  0.  you may add both ....-1 and 1.....
+  ;;    This is used in data: windows have these indexes associated.
+  ;; * logical: workspace-id-to-logical 0 1 ....  it's the position in an (ordered) list.
+  ;;   Hyper-F1 should switch to which one?
+  ;; * User numbering: user should indicate numers  1 2 ....
+  ;;             so there is a conversion function   1-  !
+  ;; * names
+
+  (defvar current-workspace 0 "Currently active workspace, an integer")
+
+  (defvar first-interesting-workspace nil)
+  (defvar last-interesting-workspace nil)
 
   (defvar static-workspace-menus
     `((,(_ "_Insert workspace") insert-workspace-after)
@@ -171,12 +193,63 @@ a window"
   (defvar remove-from-workspace-hook '())
 
   ;; window properties whose values may differ on different workspaces
-  (define workspace-local-properties '())
+  (defvar workspace-local-properties '())
 
   ;; true when in "show desktop" mode
-  (define showing-desktop nil)
+  (defvar showing-desktop nil)
 
-;;; Workspace ``swapping''
+;;; Workspace ``swapping'':
+  (define (set-nth! list n value)
+    (rplaca (nthcdr n list) value))
+
+  ;; ADT: infinite array ?
+  (define (nth-or-create n list new)
+    ;; wrong API. Should take a procedure to create, rather than a value.
+    ;; list must be NOT VOID:
+    (let ((available (length list)))
+      (if (<= available n)
+          (let ((complement (make-list (+ 1 (- n available)) new))) ; make the intermediate
+            (nconc list complement)))
+      (nth n list)))
+
+  ;; given workspaces-names ... make the ADT for current WSs
+  (defvar ws-list
+    (let ((wlist
+	   (mapcar make-workspace workspace-names)))
+      (if (null wlist)
+	  (list (make-workspace))
+	wlist)))
+
+  (define (ws->ws n)
+    ;; get the WS object from number
+    (let* ((real-index (workspace-id-to-logical n))
+           (ws (nth-or-create real-index
+			      ws-list #f)))
+      (unless (workspace? ws)
+        (setq ws (make-workspace))
+        (set-nth! ws-list n ws))
+      ws))
+
+  ;; before leaving WS:
+  (define (store-ws n)
+    (let* ((ws (ws->ws n))
+           (vp (viewport-of ws)))
+      (unless (viewport? vp)
+        (setq vp (make-viewport))
+        (set-viewport! ws vp))
+      (save-current-viewport vp)))
+
+  ;; entering:
+  (define (restore-ws n)
+    (let* ((ws (ws->ws n))
+           (vp (viewport-of ws)))
+      (if (viewport? vp)
+          (restore-current-viewport vp))))
+
+  (define (workspace-name ws)
+    ;;(message (format #f "workspace-name %d" ws))
+    (or (nth ws workspace-names)
+        (format nil (_ "Workspace %d") ws)))
 
   ;; Property swapping is done on demand, and for each window
   ;; individually. This ensures that only the minimum required data is
@@ -518,16 +591,58 @@ a window"
       (call-window-hook 'add-to-workspace-hook w (list new))
       (call-hook 'workspace-state-change-hook)))
 
+  (define (select-workspace-adt old space)
+    ;; Every win has alist of ws -> data  and current data
+    (store-ws old)
+    (let ((order (stacking-order)))     ;why in that order?
+      (mapc (lambda (w)
+              (when (or (window-get w 'sticky)
+                        (window-in-workspace-p w space))
+                (swap-in w space)))
+            order))
+    (restore-ws space))
+
+  ;; do the real switch of windows
+  (define (select-workspace-x old-space space)
+    (declare (unused old-space))
+    
+    (let ((order (stacking-order)))
+      ;; the server grabs are just for optimisation (each call to
+      ;; show-window or hide-window may also grab the server semaphore)
+      (with-server-grabbed
+       ;; first map new windows top-to-bottom -- to avoid useless exposures.
+       (mapc (lambda (w)
+               ;; show the new (not sticky)  windows
+               (when (and
+		      ;;(not (window-get w 'sticky)) ; these don't need it
+                      (window-appears-in-workspace-p w space)
+		      ;; a bit hacky: a window can be in a WS but not be placed ??
+                      (window-get w 'placed)) 
+                 (if (window-viewable-p w)
+                     (progn
+                       (show-window w))
+                   (hide-window w))))
+             order)
+       ;; then unmap old-windows bottom-to-top
+       (mapc (lambda (w)
+               (when (and
+                      (not (window-appears-in-workspace-p w space))
+                      (window-get w 'placed))
+                 (hide-window w)))
+             (nreverse order)))))
+
+
   ;; switch to workspace with id SPACE
-  (define (select-workspace* space #!key dont-focus inner-thunk force)
+  (define (select-workspace space #!optional dont-focus inner-thunk)
     "Activate workspace number SPACE (from zero)."
-    (when (or force (/= current-workspace space))
+    (unless (= current-workspace space)
       (when current-workspace
 	(call-hook 'leave-workspace-hook (list current-workspace)))
-      (let ((order (stacking-order)))
+      (let ((old-space current-workspace))
 
 	;; install the new workspace id
 	(setq current-workspace space)
+        (select-workspace-adt old-space space)
 
 	;; this used to be called between unmapping old windows and
 	;; mapping new windows, but we don't do that anymore. This
@@ -535,28 +650,8 @@ a window"
 	(when inner-thunk
 	  (inner-thunk))
 
-	;; the server grabs are just for optimisation (each call to
-	;; show-window or hide-window may also grab the server semaphore)
-	(with-server-grabbed
-
-	 ;; first map new windows top-to-bottom
-	 (mapc (lambda (w)
-		 (when (window-appears-in-workspace-p w current-workspace)
-		   (swap-in w current-workspace))
-		 (when (and (window-appears-in-workspace-p w current-workspace)
-			    (window-get w 'placed))
-		   (if (window-viewable-p w)
-		       (show-window w)
-		     (hide-window w))))
-	       order)
-
-	 ;; then unmap old-windows bottom-to-top
-	 (mapc (lambda (w)
-		 (when (and (not (window-appears-in-workspace-p
-				  w current-workspace))
-			    (window-get w 'placed))
-		   (hide-window w)))
-	       (nreverse order)))
+	;; unmap & map:
+	(select-workspace-x old-space space)
 
 	;; focus the correct window in the new workspace
 	(unless (or dont-focus (eq focus-mode 'enter-exit))
@@ -568,9 +663,6 @@ a window"
 	  (call-hook 'enter-workspace-hook (list current-workspace)))
 	(call-hook 'workspace-state-change-hook))))
 
-  (define (select-workspace space #!optional dont-focus inner-thunk)
-    (select-workspace* space #:dont-focus dont-focus
-                       #:inner-thunk inner-thunk))
 
   ;; return a list of all windows on workspace index SPACE
   (define (workspace-windows
@@ -870,13 +962,13 @@ last instance remaining, then delete the actual window."
     "Hide all windows except the desktop window."
     (unless showing-desktop
       (setq showing-desktop t)
-      (select-workspace* current-workspace #:force t)))
+      (select-workspace current-workspace)))
 
   (define (hide-desktop)
     "Undoes the effect of the `show-desktop' command."
     (when showing-desktop
       (setq showing-desktop nil)
-      (select-workspace* current-workspace #:force t)))
+      (select-workspace current-workspace)))
 
   (define (showing-desktop-p)
     "Returns true when in `showing desktop' mode."

@@ -1,7 +1,9 @@
 ;; -*-emacs-lisp-*-
 
 (setq load-path (cons (concat "/usr/share/"
-                              (symbol-name flavor)
+			      (if (boundp 'flavor)
+				  (symbol-name flavor)
+				"emacs")
 			      "/site-lisp/sawfish") load-path))
 
 (autoload 'sawfish-mode "sawfish" "sawfish-mode" t)

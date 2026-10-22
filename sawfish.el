@@ -116,11 +116,11 @@
   ;; Keep everyone quiet.
   (defvar sawfish-mode-map)
   (defvar sawfish-mode-menu)
-  
+
   ;; Things to keep XEmacs quiet.
   (unless (boundp 'font-lock-defaults-alist)
     (defvar font-lock-defaults-alist))
-  
+
   ;; Things to keep GNU Emacs quiet.
   (unless (boundp 'delete-menu-item)
     (defun delete-menu-item (path)
@@ -134,7 +134,7 @@
     (defmacro defcustom (symbol init docstring &rest rest)
       `(defvar ,symbol ,init ,docstring))))
 
-;; Customize options.
+;;; Customize options.
 
 (defgroup sawfish nil
   "Mode for editing the configuration of and interacting with the sawfish
@@ -231,7 +231,7 @@ already fontified."
   :group 'sawfish
   :type '(repeat (string :tag "Keyword: ")))
 
-;; Non customising variables.
+;;; Non customising variables.
 
 (defvar sawfish-function-list nil
   "List of sawfish functions.")
@@ -275,7 +275,7 @@ already fontified."
       "Symbol"))
   "Closure to pass to sawfish-client that will describe a symbol's binding.")
 
-;; Constants.
+;;; Constants.
 
 (defconst sawfish-defines-regexp
     (concat "(\\("
@@ -328,7 +328,7 @@ already fontified."
                        '(0 font-lock-warning-face prepend)))))
   "Some additonal keywords to highlight in `sawfish-mode'.")
 
-;; Main code:
+;;; Main code:
 
 ;;;###autoload
 (define-derived-mode sawfish-mode emacs-lisp-mode "Sawfish"

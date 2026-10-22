@@ -24,10 +24,12 @@
 	    window-order-push
 	    window-order-pop
 	    window-order-most-recent
-	    window-order-focus-most-recent)
+            window-order-focus-most-recent
+	    update-order+determine-focus-in-viewport)
 
     (open rep
 	  rep.system
+	  rep.trace
 	  sawfish.wm.windows
 	  sawfish.wm.session.init
 	  sawfish.wm.workspace
@@ -36,10 +38,11 @@
   (define-structure-alias window-order sawfish.wm.util.window-order)
 
   ;; window order high-water-mark
-  (define window-order-highest 1)
+  (defvar window-order-highest 1)
 
+  (define debug nil)
   ;; return windows in MRU order
-  (define (window-order #!optional workspace allow-iconified all-viewports)
+  (define (window-order #!optional workspace allow-iconified all-viewports general-filter)
     (let ((windows (managed-windows)))
       (setq windows (delete-if (lambda (w)
 				 (or (not (window-mapped-p w))
@@ -50,8 +53,23 @@
 					  (not (window-appears-in-workspace-p
 						w workspace)))))
 			       windows))
-      (unless all-viewports
+      (DB "%s\n" windows)
+      (cond
+       ((not all-viewports)
 	(setq windows (delete-if window-outside-viewport-p windows)))
+       ((and
+	 ;; all-viewports is  (xx . yy)
+	 ;; then see if it is in the viewport given by those start coordinates
+	 (consp all-viewports)
+	 (integerp (car all-viewports))
+	 (integerp (cdr all-viewports)))
+	(setq windows
+	      (delete-if (lambda (w)
+			   (window-outside-shifted-viewport-p w all-viewports))
+		windows))))
+      
+      (if general-filter
+          (setq windows (delete-if general-filter windows)))
       (sort windows (lambda (x y)
 		      (setq x (window-get x 'order))
 		      (setq y (window-get y 'order))
@@ -82,32 +100,57 @@
 	      (setq i (1+ i))) order)
       (setq window-order-highest i)))
 
-  (define (window-order-most-recent #!key (windows 0))
+  (define (window-order-most-recent #!key (windows 0) (predicate nil) (filter-predicate nil) )
     "Return the most-recently focused window in the current workspace. If the
 WINDOWS argument is given it should be a list of windows, in this case the
 function will restrict its search to the elements of this list."
     (let loop ((rest (window-order current-workspace nil)))
       (cond ((null rest) nil)
 	    ((or (window-get (car rest) 'never-focus)
-		 (and (listp windows) (not (memq (car rest) windows))))
+		 (and (listp windows) (not (memq (car rest) windows)))
+		 (and predicate (predicate (car rest)))
+		 (and filter-predicate (not (filter-predicate (car rest)))))
 	     (loop (cdr rest)))
 	    (t (car rest)))))
 
   (define (window-order-focus-most-recent)
     (set-input-focus (window-order-most-recent)))
 
-  (define (on-viewport-change)
     ;; The problem is that any sticky windows that have been focused once
     ;; will _always_ rise to the top of the order when switching viewports
     ;; (since the topmost window is _always_ focused when entering a new
     ;; workspace). The hacky solution is to remove the order of any sticky
     ;; windows
+  (define (wipe-order-for-sticky)
     (let ((order (window-order current-workspace)))
       (mapc (lambda (w)
 	      (when (window-get w 'sticky-viewport)
-		(window-put w 'order nil))) order))
-    (unless (eq focus-mode 'enter-exit)
-      (window-order-focus-most-recent)))
+		(DB "burying %s (on-viewport-change)" (window-name w))
+		(window-put w 'order nil)))
+	    order)))
+
+  (define (on-viewport-change)
+    (wipe-order-for-sticky)
+    (let ((current (input-focus)))
+      (unless moving-window
+	(unless (eq focus-mode 'enter-exit)
+	  (window-order-focus-most-recent))
+	;; mmc: not sure if this goes inside the unless
+	(let ((input (input-focus)))
+	  (if (and input (eq input current))
+	      (raise-window input))))))
+
+  ;; fixme: todo: add moving-window as param.
+  (define (update-order+determine-focus-in-viewport offset)
+    (wipe-order-for-sticky)
+    ;; determine the window to focus: (w/ minimum 'order)
+    (if (and
+	  (not moving-window)		; "the window which is being carried to another VP"
+	  (not (eq focus-mode 'enter-exit)))
+	 (let ((new-focus (window-order current-workspace nil offset)))
+	   (and (consp new-focus)
+		(car new-focus)))
+       #f))
 
   (sm-add-saved-properties 'order)
   (add-swapped-properties 'order)
