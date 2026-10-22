@@ -45,6 +45,10 @@
 #include <X11/Xatom.h>
 #include <stdint.h>
 
+#include "debug.h"
+#include "debug-colors.h"
+int debug_functions=0;
+
 /* Number of outstanding server grabs made; only when this is zero is
    the server ungrabbed. */
 static int server_grabs;
@@ -65,12 +69,52 @@ static int xinerama_heads;
 # endif
 #endif
 
-DEFSYM(root, "root");
+// DEFSYM(root, "root");
 DEFSYM(after_restacking_hook, "after-restacking-hook");
 DEFSYM(position, "position");
 DEFSYM(spacing, "spacing");
 DEFSYM(window, "window");
 DEFSYM(head, "head");
+
+/* used by `restack_window' to do nothing. That is called from various x-lower/raise calls
+ * in this file: */
+
+
+DEFUN("commit-restacking", Fcommit_restacking, Scommit_restacking,
+      (repv list), rep_Subr1) /*
+::doc:sawfish.wm.events::commit-restacking
+
+(commit-restacking old-stacking-list)
+called with the _old_ stacking order, which should be _still_ present in X.
+Pushes the delayed stacking order modifications to the X server.
+::end:: */
+{
+   int i = 0;
+   repv ptr;
+   /* make the C array: */
+   rep_DECLARE1(list, rep_LISTP);
+
+   if (list == Qnil)
+      return Qt;   /* fixme: what if we have something now?
+		      mmc: the 2 vectors have to contain the `same' set of windows. */
+   {
+      /* we want to operate on 2 vectors: move the list in a C array: */
+      /* convert a list into C array? */
+      int len = rep_list_length(list);  /* fixme!!!! was Flength*/
+      Lisp_Window** stacking_on_server = alloca((len +1) * sizeof(Lisp_Window*)); /* ??? why + 1*/
+
+      for (ptr = list; rep_CONSP (ptr); ptr = rep_CDR (ptr)) /* I could use len. */
+	 {
+	    if (!WINDOWP (rep_CAR (ptr)))
+	       return rep_signal_arg_error (list, 1);
+	    stacking_on_server[i++] = (Lisp_Window*) rep_CAR (ptr);
+	 }
+
+      push_stacking_list_to_server (stacking_on_server, i);
+      Fcall_hook (Qafter_restacking_hook, Qnil, Qnil); /* mmc */
+      return Qt;
+   }
+}
 
 DEFUN("restack-windows", Frestack_windows, Srestack_windows,
       (repv list), rep_Subr1) /*
@@ -102,18 +146,28 @@ windows isn't affected.
     {
 	Lisp_Window *this = VWIN (rep_CAR (ptr));
 
-	if (!WINDOW_IS_GONE_P (this))
+	if (!WINDOW_IS_GONE_FOR_STACKING_P (this))
 	{
-	    if (pred != 0 && !WINDOW_IS_GONE_P (pred))
+	    if (pred != 0 && !WINDOW_IS_GONE_FOR_STACKING_P (pred))
 	    {
-		remove_from_stacking_list (this);
-		insert_in_stacking_list_below (this, pred);
+                if (this == pred){
+                    /* skip over! */
+                } else {
+                    remove_from_stacking_list (this);
+                    insert_in_stacking_list_below (this, pred);
 
-		/* This works because it tries to stack relative to
-		   the window above THIS first; which we just set */
-		restack_window (this);
-	    }
+                    /* This works because it tries to stack relative to
+                       the window above THIS first; which we just set */
+                    restack_window (this);
+                }
+            }
 	    pred = this;
+	} else {
+	    if (!WINDOW_IS_GONE_FOR_STACKING_P(this))
+	    {
+		DB(("the window %s is not gone stacking-list -wise, yet we have just ignored it! Not good!\n",
+		    (rep_STR(this->name))));
+	    }
 	}
 
 	ptr = rep_CDR (ptr);
@@ -138,11 +192,12 @@ raise WINDOW to the top of the stacking order.
 {
     rep_DECLARE1 (win, WINDOWP);
 
-    if (!WINDOW_IS_GONE_P (VWIN (win)))
+
+    if (!WINDOW_IS_GONE_FOR_STACKING_P (VWIN (win)))
     {
 	if (WINDOWP (above))
 	{
-	    if (!WINDOW_IS_GONE_P (VWIN (above)))
+	    if (!WINDOW_IS_GONE_FOR_STACKING_P (VWIN (above)))
 	    {
 		remove_from_stacking_list (VWIN (win));
 		insert_in_stacking_list_above (VWIN (win), VWIN (above));
@@ -170,11 +225,11 @@ lower WINDOW to the bottom of the stacking order.
 {
     rep_DECLARE1 (win, WINDOWP);
 
-    if (!WINDOW_IS_GONE_P (VWIN (win)))
+    if (!WINDOW_IS_GONE_FOR_STACKING_P (VWIN (win)))
     {
 	if (WINDOWP (below))
 	{
-	    if (!WINDOW_IS_GONE_P (VWIN (below)))
+	    if (!WINDOW_IS_GONE_FOR_STACKING_P (VWIN (below)))
 	    {
 		remove_from_stacking_list (VWIN (win));
 		insert_in_stacking_list_below (VWIN (win), VWIN (below));
@@ -527,9 +582,10 @@ ungrab-keyboard
 Release the grab on the keyboard.
 ::end:: */
 {
-    DB(("ungrab-keyboard: time=%lu\n", last_event_time));
-    XUngrabKeyboard (dpy, last_event_time);
-    return Qt;
+   int status;
+   DB(("ungrab-keyboard: time=%lu\n", last_event_time));
+   status = XUngrabKeyboard (dpy, last_event_time);
+   return (status == Success)? Qt : Qnil; /* fixme: should be an exception! */
 }
 
 DEFUN("screen-width", Fscreen_width, Sscreen_width, (void), rep_Subr0) /*
@@ -1327,10 +1383,12 @@ DEFUN("display-message", Fdisplay_message, Sdisplay_message,
 	    attr.border_pixel = BlackPixel(dpy, screen_num);
 	    attr.event_mask = ExposureMask | ButtonPressMask;
 	    attr.colormap = image_cmap;
+            attr.save_under = True;
 	    message_win = XCreateWindow (dpy, root_window, x, y,
 					 message.width, height, 1,
 					 image_depth, InputOutput,
 					 image_visual,
+                                         CWSaveUnder |
 					 CWBackPixel | CWBorderPixel
 					 | CWOverrideRedirect | CWEventMask
 					 | CWColormap, &attr);
@@ -1365,6 +1423,7 @@ functions_init (void)
     repv tem;
 
     tem = rep_push_structure ("sawfish.wm.windows.subrs");
+    rep_ADD_SUBR(Scommit_restacking);
     rep_ADD_SUBR(Srestack_windows);
     rep_ADD_SUBR(Sx_raise_window);
     rep_ADD_SUBR(Sx_lower_window);
@@ -1406,7 +1465,7 @@ functions_init (void)
     rep_ADD_SUBR(Ssend_client_message);
     rep_pop_structure (tem);
 
-    rep_INTERN(root);
+    // rep_INTERN(root);
     rep_INTERN_SPECIAL(after_restacking_hook);
     rep_INTERN(position);
     rep_INTERN(spacing);

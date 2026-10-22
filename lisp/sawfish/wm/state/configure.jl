@@ -21,6 +21,7 @@
 (define-structure sawfish.wm.state.configure
 
     (export windows-intersect-p
+	    window-on-head
 	    window-occludes-p
 	    configure-request-handler
 	    configure-choose-gravity)
@@ -43,16 +44,30 @@
     "Ignore requests from applications to change window stacking.")
 
   ;; Returns true if window window1 and window2 intersect, false otherwise.
+
+;; rectangle (x y w h)
+(define (rectangles-disjoint pos1 dim1 pos2 dim2)
+  (or (> (car pos1) (+ (car pos2) (car dim2)))
+      (> (car pos2) (+ (car pos1) (car dim1)))
+      (> (cdr pos1) (+ (cdr pos2) (cdr dim2)))
+      (> (cdr pos2) (+ (cdr pos1) (cdr dim1)))))
+
+(define (window-on-head window head)
+  (not (rectangles-disjoint
+	(head-offset head)
+	(head-dimensions head)
+	(window-position window)
+	(window-dimensions window))))
+
+
   (defun windows-intersect-p (window1 window2)
     (let ((w1pos (window-position window1))
 	  (w2pos (window-position window2))
 	  (w1dim (window-dimensions window1))
 	  (w2dim (window-dimensions window2)))
-      (not (or (not (windows-share-workspace-p window1 window2))
-	       (> (car w1pos) (+ (car w2pos) (car w2dim)))
-	       (> (car w2pos) (+ (car w1pos) (car w1dim)))
-	       (> (cdr w1pos) (+ (cdr w2pos) (cdr w2dim)))
-	       (> (cdr w2pos) (+ (cdr w1pos) (cdr w1dim)))))))
+      (and (windows-share-workspace-p window1 window2)
+	   (not (rectangles-disjoint
+		 w1pos w1dim w2pos w2dim)))))
 
   ;; Returns true if window w occludes any window in the window
   ;; list wlist, false otherwise.  Windows do not occlude

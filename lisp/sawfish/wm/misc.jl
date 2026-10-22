@@ -58,18 +58,57 @@ status after the call to THUNK returns."
 	    ((= i counter))
 	  (grab-server))))))
 
-(define grab-counter 0)
+;;; `Keyboard' grabbing:
+;; The C core ungrabs after processing a key event, iff grab-counter == 0.
+
+;; This is defined in keys.c! So do we need it here? we should just in (use ???)
+(defvar grab-counter 0)
+
+;; Fixme: the C should deliver grab-counter 1!
+;; If from repl/sawfish-client we have to grab then!
+
+(define (grab-keyboard-soft #!optional (window nil) (ptr-sync #f) (kbd-sync #t))
+  "increase the grade of keyboard-grab. No need to Xgrab-k. b/c this functionality is
+sensible only after a key event, and at that occasion, the keyboard is grabbed anyway.
+Increases the `grab-counter'
+[29 gen 05]  I decided, that default must be keyboard sync!"
+  ;; i don't need to grab twice.  I don't need to grab at all?
+  ;; fixme: hm, so this should only
+  (if (zerop grab-counter)
+      ;; fixme: useless
+      (if (grab-keyboard window ptr-sync kbd-sync)
+          (progn
+            (setq grab-counter (1+ grab-counter))
+            #t)
+        (error "couldn't grab keyboard"))
+    (setq grab-counter (1+ grab-counter))))
+
+(define (ungrab-keyboard-soft)
+  "decrease the `grab-counter'. if zero -> ungrab-keyboard. ... reverser of `grab-keyboard-soft'"
+  ;; I don't want this: the C is synchronized with focus change.
+  (setq grab-counter (1- grab-counter)))
+
 
 (define (call-with-keyboard-grabbed thunk)
   "Call the zero-parameter function THUNK with the keyboard grabbed. If unable
 to grab the keyboard then THUNK won't be called."
-  (when (grab-keyboard)
+  (when (grab-keyboard-soft)
     (unwind-protect
-	(progn
-	  (setq grab-counter (1+ grab-counter))
-	  (thunk))
-      (when (zerop (setq grab-counter (1- grab-counter)))
-	(ungrab-keyboard)))))
+        (progn
+          (thunk))
+      (ungrab-keyboard-soft))))
+
+
+;; args: window pointer keyboard
+(define (call-with-keyboard-grabbed* grab-args thunk)
+    "Call the zero-parameter function THUNK with the keyboard grabbed. If unable
+to grab the keyboard then THUNK won't be called. calls grab-keyboard with args."
+    (when (apply grab-keyboard-soft grab-args)
+      (unwind-protect
+          (progn
+            (thunk))
+        (ungrab-keyboard-soft))))
+
 
 (define (call-with-error-handler thunk)
   (condition-case data
@@ -120,14 +159,20 @@ list of strings DIRS."
   "Return the id of a head currently containing the mouse pointer."
   (find-head (query-pointer)))
 
+(define (window-center w)
+  (let ((point (window-position w))
+	(dims (window-dimensions w)))
+    (cons
+     (+ (car point) (quotient (car dims) 2))
+     (+ (cdr point) (quotient (cdr dims) 2)))))
+
+
 (define (current-head #!optional (w (input-focus)))
   "Return the id of the `current' head."
   (require 'sawfish.wm.windows)
   (if (not (desktop-window-p w))
-      (or (and w (let ((point (window-position w))
-                       (dims (window-dimensions w)))
-                   (find-head (+ (car point) (quotient (car dims) 2))
-                              (+ (cdr point) (quotient (cdr dims) 2)))))
+      (or (and w (let ((center (window-center w)))
+                   (find-head (car center) (cdr center))))
           (pointer-head))
     (pointer-head)))
 
@@ -204,6 +249,7 @@ by concatenating the sequence of strings SEQ."
                        call-with-keyboard-grabbed call-with-error-handler
                        make-directory-recursively locate-file
                        clamp clamp* uniquify-list screen-dimensions
+                       window-center
                        pointer-head current-head current-head-dimensions
                        current-head-offset load-module eval-in
                        user-eval user-require quote-menu-item

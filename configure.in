@@ -214,7 +214,7 @@ else FONT_LOADER="X.Org"
 fi
 
 dnl Check for librep
-REP_MIN_VER="0.91.0"
+REP_MIN_VER="0.90.0"
 
 PKG_CHECK_MODULES(LIBREP, librep >= ${REP_MIN_VER}
 		  ,REP_EXECDIR="`pkg-config --variable=repcommonexecdir librep`"
@@ -225,7 +225,7 @@ PKG_CHECK_MODULES(LIBREP, librep >= ${REP_MIN_VER}
 		  ,AC_MSG_ERROR([cannot locate librep >= $REP_MIN_VER]))
 
 dnl Check for rep-gtk
-REP_GTK_MIN_VER="0.90.4"
+REP_GTK_MIN_VER="0.90.3"
 
 PKG_CHECK_MODULES(REP_GTK, rep-gtk >= ${REP_GTK_MIN_VER}
 		  ,
@@ -405,8 +405,6 @@ scripts/Makefile
 sounds/Makefile
 src/Makefile
 themes/Makefile
-debian/changelog
-debian/control
 ])
 
 AC_OUTPUT

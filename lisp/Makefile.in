@@ -34,7 +34,7 @@ COMPILE_ENV = SAWFISHLISPDIR=. \
 	      SAWFISHDOCFILE=../DOC \
 	      SAWFISH_USER_LISP_DIR=
 
-SAWFISH_LISP_FILES := sawfish/wm.jlc
+SAWFISH_LISP_FILES := sawfish/wm.jlc rep/trace.jlc
 SAWFISH_LISP_DIRS := sawfish/wm
 
 INSTALL_FILES := *.jl *.jlc
@@ -47,7 +47,8 @@ INSTALL_DIRS := \
 	sawfish/wm/animation sawfish/wm/theming \
 	sawfish/wm/state sawfish/wm/util \
 	sawfish/wm/commands sawfish/wm/session \
-	sawfish/wm/tabs
+	sawfish/wm/tabs \
+	rep
 
 all : lisp
 	set -e; for d in $(SUBDIRS); do \
@@ -60,6 +61,9 @@ lisp : $(SAWFISH_LISP_FILES)
 	done
 
 sawfish/wm.jlc : sawfish/wm.jl
+	$(COMPILE_ENV) $(sawfish_prog) compiler -f compile-batch $^
+
+rep/trace.jlc : rep/trace.jl
 	$(COMPILE_ENV) $(sawfish_prog) compiler -f compile-batch $^
 
 install : all installdirs

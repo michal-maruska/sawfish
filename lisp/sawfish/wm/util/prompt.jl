@@ -45,6 +45,7 @@
 	    prompt-for-number
 	    pwd-prompt
 
+	    ;; prompt-window-position
 	    ;; autoloaded from prompt-wm
 	    prompt-for-window
 	    prompt-for-workspace)
@@ -86,10 +87,20 @@
     "Regexp that determines which characters are to be considered part
 of a word when moving.")
 
-  (defvar prompt-window-position
-    (cons (- (quotient (screen-width) 2) 200) -200)
+  (define (prompt-window-position)
     "A cons cell defining the screen position at which the `prompt' window is
-displayed. See the `display-message' function for more details.")
+displayed. See the `display-message' function for more details."
+    ;; (head-dimensions (current-head))
+       ;; head-offset
+     (let* ((head (current-head))
+	    (geometry (head-dimensions head))
+	    (offset (head-offset head))
+	    (pos (cons (+ (car offset)
+			  (- (quotient (car geometry) 2) 200))
+		       (+ (cdr offset)
+			  (- (cdr geometry) 200)))))
+       (message (format nil "%s\n" pos))
+       pos))
 
   (define (prompt-make-history)
     "Make a receptacle for prompt history."
@@ -308,7 +319,7 @@ displayed. See the `display-message' function for more details.")
                  prompt-prompt
                  (substring result 0 prompt-position)
                  ?| (substring result prompt-position))
-         `((position . ,prompt-window-position)
+         `((position . ,(prompt-window-position))
            (foreground . ,fg)
            (background . ,bg)
            (font . , font)
@@ -366,6 +377,7 @@ optional and have reasonable defaults.
                    prompt-completions-outdated t)
 	     (prompt-update-display)
 	     (catch 'prompt-exit
+	       (allow-events 'sync-keyboard)
 	       (recursive-edit)))
 	 (display-message nil)))))
 
@@ -445,6 +457,7 @@ optional and have reasonable defaults.
              "C-a" prompt-beginning-of-line
              "C-e" prompt-end-of-line
              "TAB" prompt-complete
+	     "C-i" prompt-complete
              "RET" prompt-accept
 	     "Up" prompt-previous
 	     "Down" prompt-next
