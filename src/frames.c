@@ -43,6 +43,10 @@
 #include <X11/Xresource.h>
 #include <X11/extensions/shape.h>
 #include <assert.h>
+#include "debug.h"
+#include "debug-colors.h"
+int debug_frames;
+
 
 static XID window_fp_context;
 
@@ -1386,8 +1390,9 @@ build_frame_part (struct frame_part *fp)
     else
 	fp->rendered_image = Qnil;
 
-    DB(("  part: x=%d y=%d width=%d height=%d\n",
-	fp->x, fp->y, fp->width, fp->height));
+    if (debug_frames)
+	DB(("  part: x=%d y=%d width=%d height=%d\n",
+	    fp->x, fp->y, fp->width, fp->height));
 
     ret = TRUE;
 
@@ -1502,7 +1507,8 @@ list_frame_generator (Lisp_Window *w)
     else
 	right_x = bottom_y = 0;
 
-    DB(("list_frame_generator(%s)\n", rep_STR(w->name)));
+    if (debug_frames)
+	DB(("list_frame_generator(%s)\n", rep_STR(w->name)));
 
     while (gen_list != Qnil && rep_SYMBOLP(gen_list) && !rep_INTERRUPTP)
     {
@@ -1585,8 +1591,9 @@ list_frame_generator (Lisp_Window *w)
     w->frame_x = left_x;
     w->frame_y = top_y;
 
-    DB(("  bounding box: x=%d y=%d width=%d height=%d\n",
-	left_x, top_y, w->frame_width, w->frame_height));
+    if (debug_frames)
+	DB(("  bounding box: x=%d y=%d width=%d height=%d\n",
+	    left_x, top_y, w->frame_width, w->frame_height));
 
     if (w->reparented && bigger)
 	set_frame_shapes (w, TRUE);
@@ -1729,7 +1736,8 @@ restack_frame_parts (Lisp_Window *w)
 void
 create_window_frame (Lisp_Window *w)
 {
-    DB(("create_window_frame (%s)\n", rep_STR(w->name)));
+    if (debug_frames)
+	DB(("create_window_frame (%s)\n", rep_STR(w->name)));
     if (w->frame_parts == 0)
     {
 	w->destroy_frame = 0;
